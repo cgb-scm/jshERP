@@ -11,16 +11,11 @@
         class="trigger"
         :type="collapsed ? 'menu-fold' : 'menu-unfold'"
         @click="toggle"></a-icon>
-      <a-icon
-        v-else
-        class="trigger"
-        :type="collapsed ? 'menu-unfold' : 'menu-fold'"
-        @click="toggle"/>
 
-      <span v-if="device === 'desktop'"></span>
+      <span v-if="device === 'desktop'" class="company-name">{{ companyName }}</span>
       <span v-else>{{ systemTitle }}</span>
 
-      <user-menu :theme="theme"/>
+      <user-menu :theme="theme" @searchGlobalHeader="searchGlobalHeader" />
     </div>
     <!-- 顶部导航栏模式 -->
     <div v-else :class="['top-nav-header-index', theme]">
@@ -50,6 +45,7 @@
   import UserMenu from '../tools/UserMenu'
   import SMenu from '../menu/'
   import Logo from '../tools/Logo'
+  import { getCurrentSystemConfig } from '@/api/api'
 
   import { mixin } from '@/utils/mixin.js'
 
@@ -91,6 +87,7 @@
       return {
         headerBarFixed: false,
         systemTitle: window.SYS_TITLE,
+        companyName: '',
         //update-begin--author:sunjianlei---date:20190508------for: 顶部导航栏过长时显示更多按钮-----
         topMenuStyle: {
           headerIndexLeft: {},
@@ -122,6 +119,9 @@
         this.buildTopMenuStyle()
       }
       //update-end--author:sunjianlei---date:20190508------for: 顶部导航栏过长时显示更多按钮-----
+    },
+    created () {
+      this.initSystemConfig()
     },
     methods: {
       handleScroll() {
@@ -156,7 +156,17 @@
             this.topMenuStyle.headerIndexLeft = { 'width': `calc(100% - ${rightWidth})` }
           }
         }
-      }
+      },
+      searchGlobalHeader(key, id, title, component){
+        this.$emit("searchGlobalLayout", key, id, title, component)
+      },
+      initSystemConfig() {
+        getCurrentSystemConfig().then((res) => {
+          if(res.code === 200 && res.data){
+            this.companyName = res.data.companyName
+          }
+        })
+      },
       //update-begin--author:sunjianlei---date:20190508------for: 顶部导航栏过长时显示更多按钮-----
     }
   }
@@ -165,7 +175,7 @@
 <style lang="less" scoped>
   /* update_begin author:scott date:20190220 for: 缩小首页布局顶部的高度*/
 
-  @height: 59px;
+  @height: 49px;
 
   .layout {
 
@@ -212,6 +222,11 @@
   .ant-layout-header {
     height: @height;
     line-height: @height;
+  }
+
+  .company-name {
+    font-size:16px;
+    padding-left:10px
   }
 
   /* update_end author:scott date:20190220 for: 缩小首页布局顶部的高度*/

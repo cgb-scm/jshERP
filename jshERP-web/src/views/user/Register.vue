@@ -5,7 +5,8 @@
       <a-form-item
         fieldDecoratorId="username"
         :fieldDecoratorOptions="{rules: [{ required: true, message: '用户名不能为空'}, { validator: this.handleUserName}], validateTrigger: ['change', 'blur'], validateFirst: true}">
-        <a-input size="large" type="text" autocomplete="false" placeholder="请输入用户名"></a-input>
+        <a-input size="large" type="text" @focus="initWeixin" @mouseover="initWeixin" autocomplete="false"
+                 placeholder="请输入用户名"></a-input>
       </a-form-item>
 
       <a-popover placement="rightTop" trigger="click" :visible="state.passwordLevelChecked">
@@ -21,7 +22,8 @@
         <a-form-item
           fieldDecoratorId="password"
           :fieldDecoratorOptions="{rules: [{ required: false}, { validator: this.handlePasswordLevel }], validateTrigger: ['change', 'blur'], validateFirst: true}">
-          <a-input size="large" type="password" @click="handlePasswordInputClick" autocomplete="false" placeholder="至少6位密码，区分大小写"></a-input>
+          <a-input size="large" type="password" @click="handlePasswordInputClick" @mouseover="initWeixin"
+                   autocomplete="false" placeholder="至少6位密码，区分大小写"></a-input>
         </a-form-item>
       </a-popover>
 
@@ -40,6 +42,7 @@
               size="large"
               type="text"
               default-value=""
+              @mouseover="initWeixin"
               placeholder="请输入验证码">
               <a-icon slot="prefix" type="smile" :style="{ color: 'rgba(0,0,0,.25)' }"/>
             </a-input>
@@ -58,6 +61,7 @@
           htmlType="submit"
           class="register-button"
           :loading="registerBtn"
+          @mouseover="initWeixin"
           @click.stop.prevent="handleSubmit"
           :disabled="registerBtn">注册租户
         </a-button>
@@ -72,6 +76,11 @@
           </a-col>
         </a-row>
       </div>
+
+      <div v-if="showWeixinFlag" style="text-align: center; padding-top: 20px;">
+        <img src="/static/weixin.jpg" style="width:160px" />
+        <div style="font-size:16px;padding-top:10px;font-weight:bold">欢迎【扫一扫】<br/>{{systemTitle}}微信小程序</div>
+      </div>
     </a-form>
   </div>
 </template>
@@ -79,7 +88,6 @@
 <script>
   import {mixinDevice} from '@/utils/mixin.js'
   import {getAction, postAction} from '@/api/manage'
-  import {checkOnlyUser} from '@/api/api'
   import md5 from 'md5'
 
   const levelNames = {
@@ -120,7 +128,8 @@
           percent: 10,
           progressColor: '#FF0000'
         },
-        registerBtn: false
+        registerBtn: false,
+        showWeixinFlag:false,
       }
     },
     computed: {
@@ -206,19 +215,6 @@
         callback()
       },
 
-      handlePhoneCheck(rule, value, callback) {
-        var params = {
-          phone: value,
-        };
-        checkOnlyUser(params).then((res) => {
-          if (res.success) {
-            callback()
-          } else {
-            callback("手机号已存在!")
-          }
-        })
-      },
-
       handlePasswordInputClick() {
         if (!this.isMobile()) {
           this.state.passwordLevelChecked = true
@@ -279,6 +275,32 @@
           duration: 4,
         });
         this.registerBtn = false;
+      },
+      initWeixin() {
+        if(this.showWeixinSpan()) {
+          let that = this
+          setTimeout(function() {
+            that.showWeixin()
+          },1000)
+        }
+      },
+      showWeixinSpan() {
+        let host = window.location.host
+        if(host === 'cloud.huaxiaerp.vip') {
+          return true
+        } else {
+          return false
+        }
+      },
+      showWeixin() {
+        this.showWeixinFlag = true
+      },
+      changeWeixinStatus() {
+        if(this.showWeixinFlag) {
+          this.showWeixinFlag = false
+        } else {
+          this.showWeixinFlag = true
+        }
       },
     },
     watch: {
@@ -342,5 +364,11 @@
   }
   .login-copyright, .login-copyright a {
     color: #666
+  }
+
+  .login-copyright .weixin {
+    padding-left:10px;
+    color: red;
+    cursor:pointer
   }
 </style>

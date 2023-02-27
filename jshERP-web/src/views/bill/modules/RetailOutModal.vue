@@ -4,19 +4,17 @@
     :width="width"
     :visible="visible"
     :confirmLoading="confirmLoading"
-    :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
     v-bind:prefixNo="prefixNo"
     switchHelp
     switchFullscreen
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
     :id="prefixNo"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    style="top:20px;height: 95%;">
     <template slot="footer">
       <a-button @click="handleCancel">取消</a-button>
-      <a-button v-if="isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
+      <a-button v-if="checkFlag && isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
       <a-button type="primary" @click="handleOk">保存</a-button>
     </template>
     <a-spin :spinning="confirmLoading">
@@ -85,7 +83,7 @@
                   <a-col v-if="!scanStatus" :md="16" :sm="24" style="padding: 0 6px 0 12px">
                     <a-input placeholder="请扫码商品条码并回车" v-model="scanBarCode" @pressEnter="scanPressEnter" ref="scanBarCode"/>
                   </a-col>
-                  <a-col v-if="!scanStatus" :md="6" :sm="24" style="padding: 0px">
+                  <a-col v-if="!scanStatus" :md="6" :sm="24" style="padding: 0px 18px 0 0">
                     <a-button @click="stopScan">收起扫码</a-button>
                   </a-col>
                 </a-row>
@@ -133,7 +131,7 @@
                   <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" data-step="6" data-title="收款金额"
                                data-intro="收款金额为收银员收取用户的实际金额">
                     <span slot="label" style="font-size: 20px;line-height:20px">收款金额</span>
-                    <a-input v-decorator.trim="[ 'getAmount' ]" :style="{color:'red'}" defaultValue="0" @keyup="onKeyUpGetAmount"/>
+                    <a-input v-decorator.trim="[ 'getAmount' ]" :style="{color:'red'}" defaultValue="0" @change="onChangeGetAmount"/>
                   </a-form-item>
                 </a-col>
                 <a-col :lg="24" :md="6" :sm="6">
@@ -230,28 +228,28 @@
           loading: false,
           dataSource: [],
           columns: [
-            { title: '仓库名称', key: 'depotId', width: '9%', type: FormTypes.select, placeholder: '请选择${title}', options: [],
+            { title: '仓库名称', key: 'depotId', width: '10%', type: FormTypes.select, placeholder: '请选择${title}', options: [],
               allowSearch:true, validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '条码', key: 'barCode', width: '12%', type: FormTypes.popupJsh, kind: 'material', multi: true,
+            { title: '条码', key: 'barCode', width: '14%', type: FormTypes.popupJsh, kind: 'material', multi: true,
               validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '名称', key: 'name', width: '9%', type: FormTypes.normal },
-            { title: '规格', key: 'standard', width: '6%', type: FormTypes.normal },
-            { title: '型号', key: 'model', width: '5%', type: FormTypes.normal },
+            { title: '名称', key: 'name', width: '10%', type: FormTypes.normal },
+            { title: '规格', key: 'standard', width: '8%', type: FormTypes.normal },
+            { title: '型号', key: 'model', width: '8%', type: FormTypes.normal },
             { title: '颜色', key: 'color', width: '5%', type: FormTypes.normal },
             { title: '扩展信息', key: 'materialOther', width: '7%', type: FormTypes.normal },
             { title: '库存', key: 'stock', width: '5%', type: FormTypes.normal },
             { title: '单位', key: 'unit', width: '5%', type: FormTypes.normal },
             { title: '序列号', key: 'snList', width: '12%', type: FormTypes.popupJsh, kind: 'sn', multi: true },
-            { title: '批号', key: 'batchNumber', width: '7%', type: FormTypes.popupJsh, kind: 'batch', multi: false },
-            { title: '有效期', key: 'expirationDate',width: '7%', type: FormTypes.normal },
-            { title: '多属性', key: 'sku', width: '5%', type: FormTypes.normal },
-            { title: '数量', key: 'operNumber', width: '5%', type: FormTypes.inputNumber, statistics: true,
+            { title: '批号', key: 'batchNumber', width: '8%', type: FormTypes.popupJsh, kind: 'batch', multi: false },
+            { title: '有效期', key: 'expirationDate',width: '9%', type: FormTypes.input, readonly: true },
+            { title: '多属性', key: 'sku', width: '9%', type: FormTypes.normal },
+            { title: '数量', key: 'operNumber', width: '6%', type: FormTypes.inputNumber, statistics: true,
               validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '单价', key: 'unitPrice', width: '5%', type: FormTypes.inputNumber},
-            { title: '金额', key: 'allPrice', width: '5%', type: FormTypes.inputNumber, statistics: true },
+            { title: '单价', key: 'unitPrice', width: '6%', type: FormTypes.inputNumber},
+            { title: '金额', key: 'allPrice', width: '6%', type: FormTypes.inputNumber, statistics: true },
             { title: '备注', key: 'remark', width: '7%', type: FormTypes.input }
           ]
         },
@@ -278,7 +276,7 @@
     created () {
       this.initPayTypeList()
       let realScreenWidth = window.screen.width
-      this.minWidth = realScreenWidth<1500?900:1100
+      this.minWidth = realScreenWidth<1500?800:1100
     },
     methods: {
       //调用完edit()方法之后会自动调用此方法
@@ -317,7 +315,8 @@
           // 加载子表数据
           let params = {
             headerId: this.model.id,
-            mpList: getMpListShort(Vue.ls.get('materialPropertyList'))  //扩展属性
+            mpList: getMpListShort(Vue.ls.get('materialPropertyList')),  //扩展属性
+            linkType: 'basic'
           }
           let url = this.readOnly ? this.url.detailList : this.url.detailList;
           this.requestSubTableData(url, params, this.materialTable);
@@ -328,6 +327,7 @@
           this.model.tenantId = ''
           this.copyAddInit(this.prefixNo)
         }
+        this.initSystemConfig()
         this.initRetail()
         this.initDepot()
         this.initAccount()
@@ -395,7 +395,7 @@
         });
       },
       //改变收款金额
-      onKeyUpGetAmount(e) {
+      onChangeGetAmount(e) {
         const value = e.target.value
         let changeAmount = this.form.getFieldValue('changeAmount')-0
         let backAmount = (value - changeAmount).toFixed(2)-0

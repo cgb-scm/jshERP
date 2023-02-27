@@ -34,12 +34,6 @@ public class ExceptionConstants {
      **/
     public static final int SERVICE_SYSTEM_ERROR_CODE = 500;
     public static final String SERVICE_SYSTEM_ERROR_MSG = "未知异常";
-
-    /**
-     * 删除操作被拒绝，请联系管理员
-     **/
-    public static final int DELETE_REFUSED_CODE = 600;
-    public static final String DELETE_REFUSED_MSG = "删除操作被拒绝，请联系管理员";
     /**
      * 检测到存在依赖数据，是否强制删除？
      **/
@@ -58,27 +52,24 @@ public class ExceptionConstants {
     //修改用户信息失败
     public static final int USER_EDIT_FAILED_CODE = 500002;
     public static final String USER_EDIT_FAILED_MSG = "修改用户信息失败";
-    //用户名已存在
-    public static final int USER_USER_NAME_ALREADY_EXISTS_CODE = 500003;
-    public static final String USER_USER_NAME_ALREADY_EXISTS_MSG = "用户名在本系统已存在";
     //登录名已存在
     public static final int USER_LOGIN_NAME_ALREADY_EXISTS_CODE = 500003;
     public static final String USER_LOGIN_NAME_ALREADY_EXISTS_MSG = "登录名在本系统已存在";
     //用户录入数量超出限制
     public static final int USER_OVER_LIMIT_FAILED_CODE = 500004;
-    public static final String USER_OVER_LIMIT_FAILED_MSG = "用户录入数量超出限制，请联系管理员";
+    public static final String USER_OVER_LIMIT_FAILED_MSG = "用户录入数量超出限制，请联系平台管理员";
     //此用户名限制使用
     public static final int USER_NAME_LIMIT_USE_CODE = 500005;
     public static final String USER_NAME_LIMIT_USE_MSG = "此用户名限制使用";
-    //演示用户不允许删除
-    public static final int USER_LIMIT_DELETE_CODE = 500006;
-    public static final String USER_LIMIT_DELETE_MSG = "抱歉，演示模式下的演示用户不允许删除";
-    //演示用户不允许修改
-    public static final int USER_LIMIT_UPDATE_CODE = 500007;
-    public static final String USER_LIMIT_UPDATE_MSG = "抱歉，演示模式下的演示用户不允许修改";
+    //启用的用户数量超出限制
+    public static final int USER_ENABLE_OVER_LIMIT_FAILED_CODE = 500006;
+    public static final String USER_ENABLE_OVER_LIMIT_FAILED_MSG = "启用的用户数量超出限制，请联系平台管理员";
     //租户不能被删除
     public static final int USER_LIMIT_TENANT_DELETE_CODE = 500008;
     public static final String USER_LIMIT_TENANT_DELETE_MSG = "抱歉，租户不能被删除";
+    //当前机构已经存在经理
+    public static final int USER_LEADER_IS_EXIST_CODE = 500009;
+    public static final String USER_LEADER_IS_EXIST_MSG = "抱歉，当前机构已经存在经理";
 
     /**
      * 角色信息
@@ -326,6 +317,21 @@ public class ExceptionConstants {
     //比例格式错误
     public static final int MATERIAL_RATIO_NOT_INTEGER_CODE = 8000016;
     public static final String MATERIAL_RATIO_NOT_INTEGER_MSG = "第%s行比例格式错误";
+    //组装拆卸单不能选择批号或序列号商品
+    public static final int MATERIAL_ASSEMBLE_SELECT_ERROR_CODE = 80000017;
+    public static final String MATERIAL_ASSEMBLE_SELECT_ERROR_MSG = "抱歉，组装拆卸单不能选择批号或序列号商品:%s";
+    //调拨单不能选择批号或序列号商品
+    public static final int MATERIAL_TRANSFER_SELECT_ERROR_CODE = 80000018;
+    public static final String MATERIAL_TRANSFER_SELECT_ERROR_MSG = "抱歉，调拨单不能选择批号或序列号商品:%s，建议走其它入库和出库单";
+    //盘点业务不能选择批号或序列号商品
+    public static final int MATERIAL_STOCK_CHECK_ERROR_CODE = 80000019;
+    public static final String MATERIAL_STOCK_CHECK_ERROR_MSG = "抱歉，盘点业务不能选择批号或序列号商品:%s，建议走其它入库和出库单";
+    //EXCEL中存在重复的商品
+    public static final int MATERIAL_EXCEL_IMPORT_EXIST_CODE = 80000020;
+    public static final String MATERIAL_EXCEL_IMPORT_EXIST_MSG = "抱歉，EXCEL中存在重复的商品，具体信息为：%s";
+    //EXCEL中存在重复的条码
+    public static final int MATERIAL_EXCEL_IMPORT_BARCODE_EXIST_CODE = 80000021;
+    public static final String MATERIAL_EXCEL_IMPORT_BARCODE_EXIST_MSG = "抱歉，EXCEL中存在重复的条码，具体条码为：%s";
 
     /**
      *  单据信息
@@ -355,9 +361,9 @@ public class ExceptionConstants {
     //单据录入-请修改多账户的结算金额
     public static final int DEPOT_HEAD_MANY_ACCOUNT_FAILED_CODE = 8500008;
     public static final String DEPOT_HEAD_MANY_ACCOUNT_FAILED_MSG = "请修改多账户的结算金额";
-    //单据录入-退货单不能欠款
+    //单据录入-关联单据实际不存在欠款
     public static final int DEPOT_HEAD_BACK_BILL_DEBT_FAILED_CODE = 8500009;
-    public static final String DEPOT_HEAD_BACK_BILL_DEBT_FAILED_MSG = "退货单不能欠款";
+    public static final String DEPOT_HEAD_BACK_BILL_DEBT_FAILED_MSG = "抱歉，关联单据为空时不能欠款";
     //单据录入-调入仓库与原仓库不能重复
     public static final int DEPOT_HEAD_ANOTHER_DEPOT_EQUAL_FAILED_CODE = 8500010;
     public static final String DEPOT_HEAD_ANOTHER_DEPOT_EQUAL_FAILED_MSG = "调入仓库与原仓库不能重复";
@@ -385,6 +391,16 @@ public class ExceptionConstants {
     //单据录入-商品条码XXX的单价低于最低售价
     public static final int DEPOT_HEAD_UNIT_PRICE_LOW_CODE = 8000018;
     public static final String DEPOT_HEAD_UNIT_PRICE_LOW_MSG = "商品条码%s的单价低于最低售价";
+    //单据录入-本次欠款金额不能大于关联单据实际的欠款
+    public static final int DEPOT_HEAD_BACK_BILL_DEBT_OVER_CODE = 8500019;
+    public static final String DEPOT_HEAD_BACK_BILL_DEBT_OVER_MSG = "抱歉，本次欠款金额不能大于关联单据实际的欠款";
+    //单据录入-单据明细中必须要有组合件和普通子件
+    public static final int DEPOT_HEAD_CHECK_ASSEMBLE_EMPTY_CODE = 8000020;
+    public static final String DEPOT_HEAD_CHECK_ASSEMBLE_EMPTY_MSG = "抱歉，单据明细中必须要有组合件和普通子件";
+    //单据录入-商品条码XXX的数量与序列号不一致
+    public static final int DEPOT_HEAD_SN_NUMBERE_FAILED_CODE = 8000021;
+    public static final String DEPOT_HEAD_SN_NUMBERE_FAILED_MSG = "抱歉，商品条码:%s的数量与序列号不一致";
+
     /**
      *  单据明细信息
      * type = 90
@@ -502,13 +518,6 @@ public class ExceptionConstants {
         JSONObject success = new JSONObject();
         success.put(GLOBAL_RETURNS_CODE, SERVICE_SUCCESS_CODE);
         success.put(GLOBAL_RETURNS_MESSAGE, SERVICE_SUCCESS_MSG);
-        return success;
-    }
-
-    public static JSONObject standardErrorUserOver () {
-        JSONObject success = new JSONObject();
-        success.put(GLOBAL_RETURNS_CODE, USER_OVER_LIMIT_FAILED_CODE);
-        success.put(GLOBAL_RETURNS_MESSAGE, USER_OVER_LIMIT_FAILED_MSG);
         return success;
     }
 }

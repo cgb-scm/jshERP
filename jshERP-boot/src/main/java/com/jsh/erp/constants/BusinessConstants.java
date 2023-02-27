@@ -87,11 +87,15 @@ public class BusinessConstants {
     public static final String SUB_TYPE_PURCHASE_RETURN = "采购退货";
     public static final String SUB_TYPE_OTHER = "其它";
     public static final String SUB_TYPE_RETAIL = "零售";
+    public static final String SUB_TYPE_RETAIL_RETURN = "零售退货";
     public static final String SUB_TYPE_SALES_ORDER = "销售订单";
     public static final String SUB_TYPE_SALES = "销售";
     public static final String SUB_TYPE_SALES_RETURN = "销售退货";
     public static final String SUB_TYPE_TRANSFER = "调拨";
+    public static final String SUB_TYPE_CHECK_ENTER = "盘点录入";
     public static final String SUB_TYPE_REPLAY = "盘点复盘";
+    public static final String SUB_TYPE_ASSEMBLE = "组装单";
+    public static final String SUB_TYPE_DISASSEMBLE = "拆卸单";
     /**
      * 批量插入sql时最大的数据条数
      * */
@@ -170,6 +174,7 @@ public class BusinessConstants {
     public static final String LOG_OPERATION_TYPE_DELETE = "删除";
     public static final String LOG_OPERATION_TYPE_LOGIN = "登录";
     public static final String LOG_OPERATION_TYPE_IMPORT = "导入";
+    public static final String LOG_OPERATION_TYPE_ENABLED = "更新状态";
 
     /**
      * 数据数量单位

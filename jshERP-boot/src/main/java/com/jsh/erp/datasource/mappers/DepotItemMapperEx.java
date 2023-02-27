@@ -32,6 +32,10 @@ public interface DepotItemMapperEx {
     List<DepotItemVo4DetailByTypeAndMId> findDetailByDepotIdsAndMaterialIdList(
             @Param("depotIdArray") String[] depotIdArray,
             @Param("sku") String sku,
+            @Param("batchNumber") String batchNumber,
+            @Param("number") String number,
+            @Param("beginTime") String beginTime,
+            @Param("endTime") String endTime,
             @Param("mId") Long mId,
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
@@ -39,6 +43,10 @@ public interface DepotItemMapperEx {
     Long findDetailByDepotIdsAndMaterialIdCount(
             @Param("depotIdArray") String[] depotIdArray,
             @Param("sku") String sku,
+            @Param("batchNumber") String batchNumber,
+            @Param("number") String number,
+            @Param("beginTime") String beginTime,
+            @Param("endTime") String endTime,
             @Param("mId") Long mId);
 
     List<DepotItemVo4WithInfoEx> getDetailList(
@@ -59,6 +67,7 @@ public interface DepotItemMapperEx {
             @Param("billType") String billType,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray,
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
 
@@ -66,7 +75,8 @@ public interface DepotItemMapperEx {
             @Param("materialParam") String materialParam,
             @Param("billType") String billType,
             @Param("beginTime") String beginTime,
-            @Param("endTime") String endTime);
+            @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray);
 
     BigDecimal buyOrSaleNumber(
             @Param("type") String type,
@@ -74,6 +84,7 @@ public interface DepotItemMapperEx {
             @Param("MId") Long MId,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray,
             @Param("sumType") String sumType);
 
     BigDecimal buyOrSalePrice(
@@ -82,19 +93,22 @@ public interface DepotItemMapperEx {
             @Param("MId") Long MId,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray,
             @Param("sumType") String sumType);
 
     BigDecimal inOrOutPrice(
             @Param("type") String type,
             @Param("subType") String subType,
             @Param("beginTime") String beginTime,
-            @Param("endTime") String endTime);
+            @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray);
 
     BigDecimal inOrOutRetailPrice(
             @Param("type") String type,
             @Param("subType") String subType,
             @Param("beginTime") String beginTime,
-            @Param("endTime") String endTime);
+            @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray);
 
     BigDecimal getStockCheckSumByDepotList(
             @Param("depotList") List<Long> depotList,
@@ -157,6 +171,7 @@ public interface DepotItemMapperEx {
             @Param("goToType") String goToType);
 
     List<DepotItemVoBatchNumberList> getBatchNumberList(
+            @Param("number") String number,
             @Param("name") String name,
             @Param("depotId") Long depotId,
             @Param("barCode") String barCode,
@@ -175,5 +190,8 @@ public interface DepotItemMapperEx {
 
     Long getCountByMaterialAndBatchNumber(
             @Param("meId") Long meId,
+            @Param("batchNumber") String batchNumber);
+
+    List<DepotItem> getDepotItemByBatchNumber(
             @Param("batchNumber") String batchNumber);
 }

@@ -1,11 +1,16 @@
 import Vue from 'vue'
 import {getAction } from '@/api/manage'
 import { FormTypes } from '@/utils/JEditableTableUtil'
-import {findBySelectSup, findBySelectCus, findBySelectRetail, getUserList, getAccount} from '@/api/api'
+import {findBillDetailByNumber, findBySelectSup, findBySelectCus, findBySelectRetail, getUserList, getAccount,
+  getCurrentSystemConfig} from '@/api/api'
+import { getCheckFlag } from "@/utils/util"
 
 export const BillListMixin = {
   data () {
     return {
+      /* 原始审核是否开启 */
+      checkFlag: true,
+      prefixNo: '',
       supList: [],
       cusList: [],
       retailList: [],
@@ -59,7 +64,13 @@ export const BillListMixin = {
         if(this.btnEnableList.indexOf(2)===-1) {
           this.$refs.modalForm.isCanCheck = false
         }
-        this.handleEdit(record);
+        //查询单条单据信息
+        findBillDetailByNumber({ number: record.number }).then((res) => {
+          if (res && res.code === 200) {
+            let item = res.data
+            this.handleEdit(item)
+          }
+        })
       } else {
         this.$message.warning("抱歉，只有未审核的单据才能编辑！")
       }
@@ -71,8 +82,11 @@ export const BillListMixin = {
         this.$message.warning("抱歉，只有未审核的单据才能删除！")
       }
     },
-    myHandleDetail(record, type) {
-      this.handleDetail(record, type);
+    myHandleDetail(record, type, prefixNo) {
+      if(this.btnEnableList.indexOf(7)===-1) {
+        this.$refs.modalDetail.isCanBackCheck = false
+      }
+      this.handleDetail(record, type, prefixNo);
     },
     handleApprove(record) {
       this.$refs.modalForm.action = "approve";
@@ -93,6 +107,15 @@ export const BillListMixin = {
     },
     onDateOk(value) {
       console.log(value);
+    },
+    initSystemConfig() {
+      getCurrentSystemConfig().then((res) => {
+        if(res.code === 200 && res.data){
+          let multiBillType = res.data.multiBillType
+          let multiLevelApprovalFlag = res.data.multiLevelApprovalFlag
+          this.checkFlag = getCheckFlag(multiBillType, multiLevelApprovalFlag, this.prefixNo)
+        }
+      })
     },
     initSupplier() {
       let that = this;

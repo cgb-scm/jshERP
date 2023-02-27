@@ -4,12 +4,15 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.jsh.erp.constants.ExceptionConstants;
 import com.jsh.erp.datasource.entities.Function;
+import com.jsh.erp.datasource.entities.SystemConfig;
 import com.jsh.erp.datasource.entities.User;
 import com.jsh.erp.datasource.entities.UserBusiness;
 import com.jsh.erp.exception.BusinessRunTimeException;
 import com.jsh.erp.service.functions.FunctionService;
+import com.jsh.erp.service.systemConfig.SystemConfigService;
 import com.jsh.erp.service.userBusiness.UserBusinessService;
 import com.jsh.erp.utils.BaseResponseInfo;
+import com.jsh.erp.utils.ErpInfo;
 import com.jsh.erp.utils.StringUtil;
 import com.jsh.erp.utils.Tools;
 import io.swagger.annotations.Api;
@@ -26,6 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.jsh.erp.utils.ResponseJsonUtil.returnJson;
+
 /**
  * @author ji-sheng-hua  jshERP
  */
@@ -40,6 +45,24 @@ public class FunctionController {
 
     @Resource
     private UserBusinessService userBusinessService;
+
+    @Resource
+    private SystemConfigService systemConfigService;
+
+    @GetMapping(value = "/checkIsNumberExist")
+    @ApiOperation(value = "检查编号是否存在")
+    public String checkIsNumberExist(@RequestParam Long id,
+                                     @RequestParam(value ="number", required = false) String number,
+                                     HttpServletRequest request)throws Exception {
+        Map<String, Object> objectMap = new HashMap<String, Object>();
+        int exist = functionService.checkIsNumberExist(id, number);
+        if(exist > 0) {
+            objectMap.put("status", true);
+        } else {
+            objectMap.put("status", false);
+        }
+        return returnJson(objectMap, ErpInfo.OK.name, ErpInfo.OK.code);
+    }
 
     /**
      * 根据父编号查询菜单
@@ -72,9 +95,15 @@ public class FunctionController {
             if(funList!=null && funList.size()>0){
                 fc = funList.get(0).getValue();
             }
+            //获取系统配置信息-是否开启多级审核
+            String approvalFlag = "0";
+            List<SystemConfig> list = systemConfigService.getSystemConfig();
+            if(list.size()>0) {
+                approvalFlag = list.get(0).getMultiLevelApprovalFlag();
+            }
             List<Function> dataList = functionService.getRoleFunction(pNumber);
             if (dataList.size() != 0) {
-                dataArray = getMenuByFunction(dataList, fc);
+                dataArray = getMenuByFunction(dataList, fc, approvalFlag);
                 //增加首页菜单项
                 JSONObject homeItem = new JSONObject();
                 homeItem.put("id", 0);
@@ -90,9 +119,13 @@ public class FunctionController {
         return dataArray;
     }
 
-    public JSONArray getMenuByFunction(List<Function> dataList, String fc) throws Exception {
+    public JSONArray getMenuByFunction(List<Function> dataList, String fc, String approvalFlag) throws Exception {
         JSONArray dataArray = new JSONArray();
         for (Function function : dataList) {
+            //如果关闭多级审核，遇到任务审核菜单直接跳过
+            if("0".equals(approvalFlag) && "/workflow".equals(function.getUrl())) {
+                continue;
+            }
             JSONObject item = new JSONObject();
             List<Function> newList = functionService.getRoleFunction(function.getNumber());
             item.put("id", function.getId());
@@ -101,7 +134,7 @@ public class FunctionController {
             item.put("url", function.getUrl());
             item.put("component", function.getComponent());
             if (newList.size()>0) {
-                JSONArray childrenArr = getMenuByFunction(newList, fc);
+                JSONArray childrenArr = getMenuByFunction(newList, fc, approvalFlag);
                 if(childrenArr.size()>0) {
                     item.put("children", childrenArr);
                     dataArray.add(item);
@@ -237,60 +270,6 @@ public class FunctionController {
                 res.code = 200;
                 res.data = outer;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            res.code = 500;
-            res.data = "获取数据失败";
-        }
-        return res;
-    }
-
-    /**
-     * 根据用户id查询菜单
-     * @param userId
-     * @param request
-     * @return
-     * @throws Exception
-     */
-    @GetMapping(value = "/getMenuByUserId")
-    @ApiOperation(value = "根据用户id查询菜单")
-    public BaseResponseInfo getMenuByUserId(@RequestParam("userId") Long userId,
-                                      HttpServletRequest request)throws Exception {
-        BaseResponseInfo res = new BaseResponseInfo();
-        try {
-            JSONArray dataArray = new JSONArray();
-            Long roleId = 0L;
-            String fc = "";
-            List<UserBusiness> roleList = userBusinessService.getBasicData(userId.toString(), "UserRole");
-            if(roleList!=null && roleList.size()>0){
-                String value = roleList.get(0).getValue();
-                if(StringUtil.isNotEmpty(value)){
-                    String roleIdStr = value.replace("[", "").replace("]", "");
-                    roleId = Long.parseLong(roleIdStr);
-                }
-            }
-            //当前用户所拥有的功能列表，格式如：[1][2][5]
-            List<UserBusiness> funList = userBusinessService.getBasicData(roleId.toString(), "RoleFunctions");
-            if(funList!=null && funList.size()>0){
-                fc = funList.get(0).getValue();
-            }
-            List<Function> dataList = functionService.getRoleFunctionLeaf();
-            if (dataList.size() != 0) {
-                for (Function function : dataList) {
-                    if (fc.contains("[" + function.getId().toString() + "]")) {
-                        String page = function.getUrl();
-                        page = page.replace("/system/", "").replace("/bill/", "")
-                                .replace("/financial/", "").replace("/report/", "")
-                                .replace("/material/","");
-                        JSONObject item = new JSONObject();
-                        item.put("id", function.getId());
-                        item.put("page", page);
-                        dataArray.add(item);
-                    }
-                }
-            }
-            res.code = 200;
-            res.data = dataArray;
         } catch (Exception e) {
             e.printStackTrace();
             res.code = 500;

@@ -1,7 +1,8 @@
 import { VALIDATE_NO_PASSED, validateFormAndTables } from '@/utils/JEditableTableUtil'
-import {findBySelectSup,findBySelectCus,findBySelectRetail,findBySelectOrgan,findStockByDepotAndBarCode,getAccount,getPersonByType,findInOutItemByParam} from '@/api/api'
+import {findBySelectSup,findBySelectCus,findBySelectRetail,findBySelectOrgan,findStockByDepotAndBarCode,getAccount,
+  getPersonByType,findInOutItemByParam,getCurrentSystemConfig} from '@/api/api'
 import { getAction,putAction } from '@/api/manage'
-import { getMpListShort, getNowFormatDateTime } from "@/utils/util"
+import { getCheckFlag, getNowFormatDateTime } from "@/utils/util"
 import { USER_INFO } from "@/store/mutation-types"
 import Vue from 'vue'
 
@@ -18,6 +19,8 @@ export const FinancialModalMixin = {
       billStatus: '0',
       isCanCheck: true,
       isTenant: false,
+      /* 原始审核是否开启 */
+      checkFlag: true,
       spans: {
         labelCol1: {span: 2},
         wrapperCol1: {span: 22},
@@ -37,7 +40,8 @@ export const FinancialModalMixin = {
     let userInfo = Vue.ls.get(USER_INFO)
     this.isTenant = userInfo.id === userInfo.tenantId? true:false
     let realScreenWidth = window.screen.width
-    this.width = realScreenWidth<1500?'1300px':'1550px'
+    this.width = realScreenWidth<1500?'1200px':'1550px'
+    this.minWidth = realScreenWidth<1500?1150:1500
   },
   computed: {
     readOnly: function() {
@@ -64,6 +68,15 @@ export const FinancialModalMixin = {
             }
           }
         })
+      })
+    },
+    initSystemConfig() {
+      getCurrentSystemConfig().then((res) => {
+        if(res.code === 200 && res.data){
+          let multiBillType = res.data.multiBillType
+          let multiLevelApprovalFlag = res.data.multiLevelApprovalFlag
+          this.checkFlag = getCheckFlag(multiBillType, multiLevelApprovalFlag, this.prefixNo)
+        }
       })
     },
     initSupplier() {
@@ -211,7 +224,7 @@ export const FinancialModalMixin = {
       });
     },
     //改变优惠金额
-    onKeyUpDiscountMoney(e) {
+    onChangeDiscountMoney(e) {
       const value = e.target.value-0
       let totalPrice = this.form.getFieldValue('totalPrice')-0
       let changeAmount = (totalPrice-value).toFixed(2)
@@ -233,8 +246,8 @@ export const FinancialModalMixin = {
       for(let i=0; i<selectBillRows.length; i++){
         let info = selectBillRows[i]
         info.billNumber = info.number
-        info.needDebt = (info.discountLastMoney + info.otherMoney - (info.deposit + info.changeAmount)).toFixed(2)
-        info.eachAmount =  (info.discountLastMoney + info.otherMoney - (info.deposit + info.changeAmount + info.finishDebt)).toFixed(2);
+        info.needDebt = info.realNeedDebt
+        info.eachAmount = info.debt
         if(info.eachAmount != 0) {
           changeAmount += info.eachAmount-0
           listEx.push(info)

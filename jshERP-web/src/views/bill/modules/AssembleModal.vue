@@ -4,16 +4,14 @@
     :width="width"
     :visible="visible"
     :confirmLoading="confirmLoading"
-    :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
     switchFullscreen
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    style="top:20px;height: 95%;">
     <template slot="footer">
       <a-button @click="handleCancel">取消</a-button>
-      <a-button v-if="isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
+      <a-button v-if="checkFlag && isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
       <a-button type="primary" @click="handleOk">保存</a-button>
     </template>
     <a-spin :spinning="confirmLoading">
@@ -138,15 +136,15 @@
           dataSource: [],
           columns: [
             { title: '商品类型',key: 'mType',width:'7%', type: FormTypes.normal },
-            { title: '仓库名称', key: 'depotId', width: '7%', type: FormTypes.select, placeholder: '请选择${title}', options: [],
+            { title: '仓库名称', key: 'depotId', width: '8%', type: FormTypes.select, placeholder: '请选择${title}', options: [],
               allowSearch:true, validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '条码', key: 'barCode', width: '8%', type: FormTypes.popupJsh, kind: 'material', multi: true,
+            { title: '条码', key: 'barCode', width: '10%', type: FormTypes.popupJsh, kind: 'material', multi: true,
               validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '名称', key: 'name', width: '6%', type: FormTypes.normal },
-            { title: '规格', key: 'standard', width: '5%', type: FormTypes.normal },
-            { title: '型号', key: 'model', width: '5%', type: FormTypes.normal },
+            { title: '名称', key: 'name', width: '8%', type: FormTypes.normal },
+            { title: '规格', key: 'standard', width: '7%', type: FormTypes.normal },
+            { title: '型号', key: 'model', width: '7%', type: FormTypes.normal },
             { title: '颜色', key: 'color', width: '5%', type: FormTypes.normal },
             { title: '扩展信息', key: 'materialOther', width: '5%', type: FormTypes.normal },
             { title: '库存', key: 'stock', width: '5%', type: FormTypes.normal },
@@ -201,7 +199,8 @@
           // 加载子表数据
           let params = {
             headerId: this.model.id,
-            mpList: getMpListShort(Vue.ls.get('materialPropertyList'))  //扩展属性
+            mpList: getMpListShort(Vue.ls.get('materialPropertyList')),  //扩展属性
+            linkType: 'basic'
           }
           let url = this.readOnly ? this.url.detailList : this.url.detailList;
           this.requestSubTableData(url, params, this.materialTable);
@@ -212,6 +211,7 @@
           this.model.tenantId = ''
           this.copyAddInit(this.prefixNo)
         }
+        this.initSystemConfig()
         this.initDepot()
       },
       //提交单据时整理成formData

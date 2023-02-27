@@ -8,8 +8,8 @@
           <a-form layout="inline" @keyup.enter.native="searchQuery">
             <a-row :gutter="24">
               <a-col :md="6" :sm="24">
-                <a-form-item label="名称" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                  <a-input placeholder="请输入名称查询" v-model="queryParam.supplier"></a-input>
+                <a-form-item label="会员卡号" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                  <a-input placeholder="请输入会员卡号查询" v-model="queryParam.supplier"></a-input>
                 </a-form-item>
               </a-col>
               <a-col :md="6" :sm="24">
@@ -34,14 +34,7 @@
         <!-- 操作按钮区域 -->
         <div class="table-operator"  style="margin-top: 5px">
           <a-button v-if="btnEnableList.indexOf(1)>-1" @click="handleAdd" type="primary" icon="plus">新增</a-button>
-          <a-upload v-if="btnEnableList.indexOf(1)>-1" name="file" :showUploadList="false" :multiple="false" :headers="tokenHeader" :action="importExcelUrl" @change="handleImportExcel">
-            <a-popover title="导入注意点">
-              <template slot="content">
-                <p><a target="_blank" href="/doc/member_template.xls"><b>会员Excel模板下载</b></a></p>
-              </template>
-              <a-button type="primary" icon="import">导入</a-button>
-            </a-popover>
-          </a-upload>
+          <a-button v-if="btnEnableList.indexOf(1)>-1" @click="handleImportXls()" type="primary" icon="import">导入</a-button>
           <a-button type="primary" icon="download" @click="handleExportXls('会员信息')">导出</a-button>
           <a-dropdown>
             <a-menu slot="overlay">
@@ -85,6 +78,7 @@
         <!-- table区域-end -->
         <!-- 表单区域 -->
         <member-modal ref="modalForm" @ok="modalFormOk"></member-modal>
+        <import-file-modal ref="modalImportForm" @ok="modalFormOk"></import-file-modal>
       </a-card>
     </a-col>
   </a-row>
@@ -92,14 +86,15 @@
 <!-- f r o m 7 5  2 7 1  8 9 2 0 -->
 <script>
   import MemberModal from './modules/MemberModal'
+  import ImportFileModal from '@/components/tools/ImportFileModal'
   import { JeecgListMixin } from '@/mixins/JeecgListMixin'
-  import { openDownloadDialog, sheet2blob} from "@/utils/util"
   import JDate from '@/components/jeecg/JDate'
   export default {
     name: "MemberList",
     mixins:[JeecgListMixin],
     components: {
       MemberModal,
+      ImportFileModal,
       JDate
     },
     data () {
@@ -133,21 +128,22 @@
               return parseInt(index)+1;
             }
           },
-          { title: '名称',dataIndex: 'supplier',width:150},
-          { title: '联系人', dataIndex: 'contacts',width:70,align:"center"},
-          { title: '手机号码', dataIndex: 'telephone',width:100,align:"center"},
-          { title: '联系电话', dataIndex: 'phoneNum',width:100,align:"center"},
-          { title: '电子邮箱', dataIndex: 'email',width:150,align:"center"},
-          { title: '预付款',dataIndex: 'advanceIn',width:70,align:"center"},
-          { title: '状态',dataIndex: 'enabled',width:70,align:"center",
-            scopedSlots: { customRender: 'customRenderFlag' }
-          },
           {
             title: '操作',
             dataIndex: 'action',
-            width: 200,
+            width: 100,
             align:"center",
             scopedSlots: { customRender: 'action' },
+          },
+          { title: '会员卡号',dataIndex: 'supplier',width:150,align:"left"},
+          { title: '联系人', dataIndex: 'contacts',width:70,align:"left"},
+          { title: '手机号码', dataIndex: 'telephone',width:100,align:"left"},
+          { title: '联系电话', dataIndex: 'phoneNum',width:100,align:"left"},
+          { title: '电子邮箱', dataIndex: 'email',width:150,align:"left"},
+          { title: '预付款',dataIndex: 'advanceIn',width:70,align:"left"},
+          { title: '排序', dataIndex: 'sort', width: 60,align:"left"},
+          { title: '状态',dataIndex: 'enabled',width:60,align:"center",
+            scopedSlots: { customRender: 'customRenderFlag' }
           }
         ],
         url: {
@@ -171,6 +167,13 @@
           type:'会员',
         }
         this.loadData(1);
+      },
+      handleImportXls() {
+        let importExcelUrl = this.url.importExcelUrl
+        let templateUrl = '/doc/member_template.xls'
+        let templateName = '会员Excel模板[下载]'
+        this.$refs.modalImportForm.initModal(importExcelUrl, templateUrl, templateName);
+        this.$refs.modalImportForm.title = "会员导入";
       },
       handleEdit: function (record) {
         this.$refs.modalForm.edit(record);

@@ -6,9 +6,8 @@
     @ok="handleSubmit"
     @cancel="close"
     cancelText="关闭"
-    style="top:5%;height: 100%;overflow-y: hidden"
-    wrapClassName="ant-modal-cust-warp"
-  >
+    style="top:12%;height: 90%;overflow-y: hidden"
+    wrapClassName="ant-modal-cust-warp">
     <a-row :gutter="10" style="padding: 10px; margin: -10px">
       <a-col :md="24" :sm="24">
         <!-- 查询区域 -->
@@ -16,15 +15,16 @@
           <!-- 搜索区域 -->
           <a-form layout="inline" @keyup.enter.native="onSearch">
             <a-row :gutter="24">
-              <a-col :md="6" :sm="8">
+              <a-col :md="12" :sm="24">
                 <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="批号">
-                  <a-input placeholder="请输入批号" v-model="queryParam.name"></a-input>
+                  <a-input ref="name" placeholder="请输入批号" v-model="queryParam.name"></a-input>
                 </a-form-item>
               </a-col>
               <span style="float: left;overflow: hidden;" class="table-page-search-submitButtons">
-                <a-col :md="6" :sm="24">
-                  <a-button type="primary" @click="onSearch">查询</a-button>
+                <a-col :md="12" :sm="24">
+                  <a-button type="primary" @click="loadData(1)">查询</a-button>
                   <a-button style="margin-left: 8px" @click="searchReset(1)">重置</a-button>
+                  <span style="margin-left: 20px">提示：双击行可以直接选中</span>
                 </a-col>
               </span>
             </a-row>
@@ -61,6 +61,7 @@
         modalWidth: 1000,
         queryParam: {
           name: "",
+          depotItemId: '',
           depotId: '',
           barCode: ''
         },
@@ -74,11 +75,11 @@
         },
         categoryTree:[],
         columns: [
-          {dataIndex: 'batchNumber', title: '批号', width: 100, align: 'left'},
-          {dataIndex: 'barCode', title: '条码', width: 100},
-          {dataIndex: 'name', title: '名称', width: 100},
-          {dataIndex: 'standard', title: '规格', width: 80},
-          {dataIndex: 'model', title: '型号', width: 80},
+          {dataIndex: 'batchNumber', title: '批号', width: 100, align: 'left', ellipsis:true},
+          {dataIndex: 'barCode', title: '条码', width: 100, ellipsis:true},
+          {dataIndex: 'name', title: '名称', width: 100, ellipsis:true},
+          {dataIndex: 'standard', title: '规格', width: 80, ellipsis:true},
+          {dataIndex: 'model', title: '型号', width: 80, ellipsis:true},
           {dataIndex: 'expirationDateStr', title: '有效期至', width: 80},
           {dataIndex: 'totalNum', title: '库存', width: 80}
         ],
@@ -126,9 +127,13 @@
           this.$emit('initComp', '')
         }
       },
-      async loadData(arg) {
+      loadData(arg) {
         if(this.rows) {
           if(JSON.parse(this.rows).depotId && JSON.parse(this.rows).barCode ){
+            let depotItemId = JSON.parse(this.rows).id
+            if(depotItemId.length<=19) {
+              this.queryParam.depotItemId = depotItemId-0
+            }
             this.queryParam.depotId = JSON.parse(this.rows).depotId-0
             this.queryParam.barCode = JSON.parse(this.rows).barCode
           }
@@ -138,7 +143,7 @@
         }
         this.loading = true
         let params = this.getQueryParams()//查询条件
-        await getBatchNumberList(params).then((res) => {
+        getBatchNumberList(params).then((res) => {
           if (res && res.code === 200) {
             this.dataSource = res.data.rows
             this.ipagination.total = res.data.total
@@ -148,9 +153,10 @@
         })
       },
       showModal() {
-        this.visible = true;
-        this.loadData();
-        this.form.resetFields();
+        this.visible = true
+        this.$nextTick(() => this.$refs.name.focus())
+        this.loadData()
+        this.form.resetFields()
       },
       getQueryParams() {
         let param = Object.assign({}, this.queryParam, this.isorter);
@@ -169,6 +175,10 @@
           if(this.rows) {
             this.queryParam.name=''
             if(JSON.parse(this.rows).depotId && JSON.parse(this.rows).barCode ){
+              let depotItemId = JSON.parse(this.rows).id
+              if(depotItemId.length<=19) {
+                this.queryParam.depotItemId = depotItemId-0
+              }
               this.queryParam.depotId = JSON.parse(this.rows).depotId-0
               this.queryParam.barCode = JSON.parse(this.rows).barCode
             }
@@ -207,7 +217,18 @@
         this.selectionRows = selectionRows;
       },
       onSearch() {
-        this.loadData(1);
+        if(this.dataSource && this.dataSource.length===1) {
+          if(this.queryParam.name === this.dataSource[0].batchNumber) {
+            let arr = []
+            arr.push(this.dataSource[0].id)
+            this.selectedRowKeys = arr
+            this.handleSubmit()
+          } else {
+            this.loadData(1)
+          }
+        } else {
+          this.loadData(1)
+        }
       },
       modalFormOk() {
         this.loadData();

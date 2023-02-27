@@ -52,12 +52,6 @@ public class DepotHeadController {
     private DepotHeadService depotHeadService;
 
     @Resource
-    private AccountHeadService accountHeadService;
-
-    @Resource
-    private SupplierService supplierService;
-
-    @Resource
     private DepotService depotService;
 
     @Resource
@@ -98,16 +92,17 @@ public class DepotHeadController {
      * @param request
      * @return
      */
-    @GetMapping(value = "/findInDetail")
+    @GetMapping(value = "/findInOutDetail")
     @ApiOperation(value = "入库出库明细接口")
-    public BaseResponseInfo findInDetail(@RequestParam("currentPage") Integer currentPage,
+    public BaseResponseInfo findInOutDetail(@RequestParam("currentPage") Integer currentPage,
                                         @RequestParam("pageSize") Integer pageSize,
                                         @RequestParam(value = "organId", required = false) Integer oId,
-                                         @RequestParam("number") String number,
+                                        @RequestParam("number") String number,
                                         @RequestParam("materialParam") String materialParam,
                                         @RequestParam(value = "depotId", required = false) Long depotId,
                                         @RequestParam("beginTime") String beginTime,
                                         @RequestParam("endTime") String endTime,
+                                        @RequestParam(value = "roleType", required = false) String roleType,
                                         @RequestParam("type") String type,
                                         @RequestParam("remark") String remark,
                                         HttpServletRequest request)throws Exception {
@@ -126,11 +121,15 @@ public class DepotHeadController {
                 }
             }
             List<DepotHeadVo4InDetail> resList = new ArrayList<DepotHeadVo4InDetail>();
+            String [] creatorArray = depotHeadService.getCreatorArray(roleType);
+            String subType = "出库".equals(type)? "销售" : "";
+            String [] organArray = depotHeadService.getOrganArray(subType, "");
             beginTime = Tools.parseDayToTime(beginTime, BusinessConstants.DAY_FIRST_TIME);
             endTime = Tools.parseDayToTime(endTime,BusinessConstants.DAY_LAST_TIME);
-            List<DepotHeadVo4InDetail> list = depotHeadService.findByAll(beginTime, endTime, type, materialParam,
-                    depotList, oId, number, remark, (currentPage-1)*pageSize, pageSize);
-            int total = depotHeadService.findByAllCount(beginTime, endTime, type, materialParam, depotList, oId, number, remark);
+            List<DepotHeadVo4InDetail> list = depotHeadService.findInOutDetail(beginTime, endTime, type, creatorArray, organArray,
+                    StringUtil.toNull(materialParam), depotList, oId, StringUtil.toNull(number), remark, (currentPage-1)*pageSize, pageSize);
+            int total = depotHeadService.findInOutDetailCount(beginTime, endTime, type, creatorArray, organArray,
+                    StringUtil.toNull(materialParam), depotList, oId, StringUtil.toNull(number), remark);
             map.put("total", total);
             //存放数据json数组
             if (null != list) {
@@ -172,6 +171,7 @@ public class DepotHeadController {
                                          @RequestParam("beginTime") String beginTime,
                                          @RequestParam("endTime") String endTime,
                                          @RequestParam("type") String type,
+                                         @RequestParam(value = "roleType", required = false) String roleType,
                                          HttpServletRequest request)throws Exception {
         BaseResponseInfo res = new BaseResponseInfo();
         Map<String, Object> map = new HashMap<String, Object>();
@@ -190,8 +190,9 @@ public class DepotHeadController {
             beginTime = Tools.parseDayToTime(beginTime,BusinessConstants.DAY_FIRST_TIME);
             endTime = Tools.parseDayToTime(endTime,BusinessConstants.DAY_LAST_TIME);
             List<DepotHeadVo4InOutMCount> list = depotHeadService.findInOutMaterialCount(beginTime, endTime, type, StringUtil.toNull(materialParam),
-                    depotList, oId, (currentPage-1)*pageSize, pageSize);
-            int total = depotHeadService.findInOutMaterialCountTotal(beginTime, endTime, type, StringUtil.toNull(materialParam), depotList, oId);
+                    depotList, oId, roleType, (currentPage-1)*pageSize, pageSize);
+            int total = depotHeadService.findInOutMaterialCountTotal(beginTime, endTime, type, StringUtil.toNull(materialParam),
+                    depotList, oId, roleType);
             map.put("total", total);
             map.put("rows", list);
             res.code = 200;
@@ -229,6 +230,7 @@ public class DepotHeadController {
                                                  @RequestParam("beginTime") String beginTime,
                                                  @RequestParam("endTime") String endTime,
                                                  @RequestParam("subType") String subType,
+                                                 @RequestParam(value = "roleType", required = false) String roleType,
                                                  @RequestParam("remark") String remark,
                                                  HttpServletRequest request)throws Exception {
         BaseResponseInfo res = new BaseResponseInfo();
@@ -256,11 +258,13 @@ public class DepotHeadController {
                     depotFList.add(object.getLong("id"));
                 }
             }
+            String [] creatorArray = depotHeadService.getCreatorArray(roleType);
             beginTime = Tools.parseDayToTime(beginTime, BusinessConstants.DAY_FIRST_TIME);
             endTime = Tools.parseDayToTime(endTime,BusinessConstants.DAY_LAST_TIME);
-            List<DepotHeadVo4InDetail> list = depotHeadService.findAllocationDetail(beginTime, endTime, subType, number, materialParam,
-                    depotList, depotFList, remark, (currentPage-1)*pageSize, pageSize);
-            int total = depotHeadService.findAllocationDetailCount(beginTime, endTime, subType, number, materialParam, depotList, depotFList, remark);
+            List<DepotHeadVo4InDetail> list = depotHeadService.findAllocationDetail(beginTime, endTime, subType, StringUtil.toNull(number),
+                    creatorArray, StringUtil.toNull(materialParam), depotList, depotFList, remark, (currentPage-1)*pageSize, pageSize);
+            int total = depotHeadService.findAllocationDetailCount(beginTime, endTime, subType, StringUtil.toNull(number),
+                    creatorArray, StringUtil.toNull(materialParam), depotList, depotFList, remark);
             map.put("rows", list);
             map.put("total", total);
             res.code = 200;
@@ -298,35 +302,44 @@ public class DepotHeadController {
         try {
             String type = "";
             String subType = "";
+            String typeBack = "";
+            String subTypeBack = "";
             if (("供应商").equals(supplierType)) {
                 type = "入库";
                 subType = "采购";
+                typeBack = "出库";
+                subTypeBack = "采购退货";
             } else if (("客户").equals(supplierType)) {
                 type = "出库";
                 subType = "销售";
+                typeBack = "入库";
+                subTypeBack = "销售退货";
             }
+            String [] organArray = depotHeadService.getOrganArray(subType, "");
             beginTime = Tools.parseDayToTime(beginTime,BusinessConstants.DAY_FIRST_TIME);
             endTime = Tools.parseDayToTime(endTime,BusinessConstants.DAY_LAST_TIME);
-            List<DepotHeadVo4StatementAccount> list = depotHeadService.getStatementAccount(beginTime, endTime, organId,
-                    supplierType, type, subType, (currentPage-1)*pageSize, pageSize);
-            int total = depotHeadService.getStatementAccountCount(beginTime, endTime, organId,
-                    supplierType, type, subType);
+            List<DepotHeadVo4StatementAccount> list = depotHeadService.getStatementAccount(beginTime, endTime, organId, organArray,
+                    supplierType, type, subType,typeBack, subTypeBack, (currentPage-1)*pageSize, pageSize);
+            int total = depotHeadService.getStatementAccountCount(beginTime, endTime, organId, organArray,
+                    supplierType, type, subType,typeBack, subTypeBack);
             for(DepotHeadVo4StatementAccount item: list) {
-                BigDecimal preNeed = item.getBeginNeed().add(item.getPreDebtMoney()).subtract(item.getPreBackMoney());
+                BigDecimal preNeed = item.getBeginNeed().add(item.getPreDebtMoney()).subtract(item.getPreReturnDebtMoney()).subtract(item.getPreBackMoney());
                 item.setPreNeed(preNeed);
-                BigDecimal allNeedGet = preNeed.add(item.getDebtMoney()).subtract(item.getBackMoney());
+                BigDecimal realDebtMoney = item.getDebtMoney().subtract(item.getReturnDebtMoney());
+                item.setDebtMoney(realDebtMoney);
+                BigDecimal allNeedGet = preNeed.add(realDebtMoney).subtract(item.getBackMoney());
                 item.setAllNeed(allNeedGet);
             }
             map.put("rows", list);
             map.put("total", total);
-            List<DepotHeadVo4StatementAccount> totalPayList = depotHeadService.getStatementAccountTotalPay(beginTime, endTime, organId, supplierType, type, subType);
+            List<DepotHeadVo4StatementAccount> totalPayList = depotHeadService.getStatementAccountTotalPay(beginTime, endTime, organId, organArray, supplierType, type, subType, typeBack, subTypeBack);
             if(totalPayList.size()>0) {
                 DepotHeadVo4StatementAccount totalPayItem = totalPayList.get(0);
                 BigDecimal firstMoney = BigDecimal.ZERO;
                 BigDecimal lastMoney = BigDecimal.ZERO;
                 if(totalPayItem!=null) {
-                    firstMoney = totalPayItem.getBeginNeed().add(totalPayItem.getPreDebtMoney()).subtract(totalPayItem.getPreBackMoney());
-                    lastMoney = firstMoney.add(totalPayItem.getDebtMoney()).subtract(totalPayItem.getBackMoney());
+                    firstMoney = totalPayItem.getBeginNeed().add(totalPayItem.getPreDebtMoney()).subtract(totalPayItem.getPreReturnDebtMoney()).subtract(totalPayItem.getPreBackMoney());
+                    lastMoney = firstMoney.add(totalPayItem.getDebtMoney()).subtract(totalPayItem.getReturnDebtMoney()).subtract(totalPayItem.getBackMoney());
                 }
                 map.put("firstMoney", firstMoney); //期初
                 map.put("lastMoney", lastMoney);  //期末
@@ -360,6 +373,30 @@ public class DepotHeadController {
             }
             res.code = 200;
             res.data = dhl;
+        } catch(Exception e){
+            e.printStackTrace();
+            res.code = 500;
+            res.data = "获取数据失败";
+        }
+        return res;
+    }
+
+    /**
+     * 根据原单号查询关联的单据列表
+     * @param number
+     * @param request
+     * @return
+     */
+    @GetMapping(value = "/getBillListByLinkNumber")
+    @ApiOperation(value = "根据原单号查询关联的单据列表")
+    public BaseResponseInfo getBillListByLinkNumber(@RequestParam("number") String number,
+                                              HttpServletRequest request)throws Exception {
+        BaseResponseInfo res = new BaseResponseInfo();
+        DepotHead dh = new DepotHead();
+        try {
+            List<DepotHead> list = depotHeadService.getBillListByLinkNumber(number);
+            res.code = 200;
+            res.data = list;
         } catch(Exception e){
             e.printStackTrace();
             res.code = 500;
@@ -409,7 +446,8 @@ public class DepotHeadController {
      */
     @GetMapping(value = "/getBuyAndSaleStatistics")
     @ApiOperation(value = "统计今日采购额、昨日采购额、本月采购额、今年采购额|销售额|零售额")
-    public BaseResponseInfo getBuyAndSaleStatistics(HttpServletRequest request) {
+    public BaseResponseInfo getBuyAndSaleStatistics(@RequestParam(value = "roleType", required = false) String roleType,
+                                                    HttpServletRequest request) {
         BaseResponseInfo res = new BaseResponseInfo();
         try {
             String today = Tools.getNow() + BusinessConstants.DAY_FIRST_TIME;
@@ -419,7 +457,7 @@ public class DepotHeadController {
             String yearBegin = Tools.getYearBegin() + BusinessConstants.DAY_FIRST_TIME;
             String yearEnd = Tools.getYearEnd() + BusinessConstants.DAY_LAST_TIME;
             Map<String, Object> map = depotHeadService.getBuyAndSaleStatistics(today, monthFirstDay,
-                    yesterdayBegin, yesterdayEnd, yearBegin, yearEnd);
+                    yesterdayBegin, yesterdayEnd, yearBegin, yearEnd, roleType, request);
             res.code = 200;
             res.data = map;
         } catch(Exception e){

@@ -1,10 +1,7 @@
 package com.jsh.erp.datasource.mappers;
 
 import com.jsh.erp.datasource.entities.DepotHead;
-import com.jsh.erp.datasource.vo.DepotHeadVo4InDetail;
-import com.jsh.erp.datasource.vo.DepotHeadVo4InOutMCount;
-import com.jsh.erp.datasource.vo.DepotHeadVo4List;
-import com.jsh.erp.datasource.vo.DepotHeadVo4StatementAccount;
+import com.jsh.erp.datasource.vo.*;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
@@ -22,6 +19,7 @@ public interface DepotHeadMapperEx {
             @Param("type") String type,
             @Param("subType") String subType,
             @Param("creatorArray") String[] creatorArray,
+            @Param("hasDebt") String hasDebt,
             @Param("statusArray") String[] statusArray,
             @Param("purchaseStatusArray") String[] purchaseStatusArray,
             @Param("number") String number,
@@ -30,6 +28,7 @@ public interface DepotHeadMapperEx {
             @Param("endTime") String endTime,
             @Param("materialParam") String materialParam,
             @Param("organId") Long organId,
+            @Param("organArray") String[] organArray,
             @Param("creator") Long creator,
             @Param("depotId") Long depotId,
             @Param("depotArray") String[] depotArray,
@@ -42,6 +41,7 @@ public interface DepotHeadMapperEx {
             @Param("type") String type,
             @Param("subType") String subType,
             @Param("creatorArray") String[] creatorArray,
+            @Param("hasDebt") String hasDebt,
             @Param("statusArray") String[] statusArray,
             @Param("purchaseStatusArray") String[] purchaseStatusArray,
             @Param("number") String number,
@@ -50,19 +50,25 @@ public interface DepotHeadMapperEx {
             @Param("endTime") String endTime,
             @Param("materialParam") String materialParam,
             @Param("organId") Long organId,
+            @Param("organArray") String[] organArray,
             @Param("creator") Long creator,
             @Param("depotId") Long depotId,
             @Param("depotArray") String[] depotArray,
             @Param("accountId") Long accountId,
             @Param("remark") String remark);
 
-    String findMaterialsListByHeaderId(
-            @Param("id") Long id);
+    List<MaterialsListVo> findMaterialsListMapByHeaderIdList(
+            @Param("idList") List<Long> idList);
 
-    List<DepotHeadVo4InDetail> findByAll(
+    List<MaterialCountVo> getMaterialCountListByHeaderIdList(
+            @Param("idList") List<Long> idList);
+
+    List<DepotHeadVo4InDetail> findInOutDetail(
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("type") String type,
+            @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String[] organArray,
             @Param("materialParam") String materialParam,
             @Param("depotList") List<Long> depotList,
             @Param("oId") Integer oId,
@@ -71,10 +77,12 @@ public interface DepotHeadMapperEx {
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
 
-    int findByAllCount(
+    int findInOutDetailCount(
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("type") String type,
+            @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String[] organArray,
             @Param("materialParam") String materialParam,
             @Param("depotList") List<Long> depotList,
             @Param("oId") Integer oId,
@@ -88,6 +96,8 @@ public interface DepotHeadMapperEx {
             @Param("materialParam") String materialParam,
             @Param("depotList") List<Long> depotList,
             @Param("oId") Integer oId,
+            @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String[] organArray,
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
 
@@ -97,13 +107,16 @@ public interface DepotHeadMapperEx {
             @Param("type") String type,
             @Param("materialParam") String materialParam,
             @Param("depotList") List<Long> depotList,
-            @Param("oId") Integer oId);
+            @Param("oId") Integer oId,
+            @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String[] organArray);
 
     List<DepotHeadVo4InDetail> findAllocationDetail(
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("subType") String subType,
             @Param("number") String number,
+            @Param("creatorArray") String[] creatorArray,
             @Param("materialParam") String materialParam,
             @Param("depotList") List<Long> depotList,
             @Param("depotFList") List<Long> depotFList,
@@ -116,6 +129,7 @@ public interface DepotHeadMapperEx {
             @Param("endTime") String endTime,
             @Param("subType") String subType,
             @Param("number") String number,
+            @Param("creatorArray") String[] creatorArray,
             @Param("materialParam") String materialParam,
             @Param("depotList") List<Long> depotList,
             @Param("depotFList") List<Long> depotFList,
@@ -125,9 +139,12 @@ public interface DepotHeadMapperEx {
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("organId") Integer organId,
+            @Param("organArray") String[] organArray,
             @Param("supplierType") String supplierType,
             @Param("type") String type,
             @Param("subType") String subType,
+            @Param("typeBack") String typeBack,
+            @Param("subTypeBack") String subTypeBack,
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
 
@@ -135,17 +152,23 @@ public interface DepotHeadMapperEx {
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("organId") Integer organId,
+            @Param("organArray") String[] organArray,
             @Param("supplierType") String supplierType,
             @Param("type") String type,
-            @Param("subType") String subType);
+            @Param("subType") String subType,
+            @Param("typeBack") String typeBack,
+            @Param("subTypeBack") String subTypeBack);
 
     List<DepotHeadVo4StatementAccount> getStatementAccountTotalPay(
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("organId") Integer organId,
+            @Param("organArray") String[] organArray,
             @Param("supplierType") String supplierType,
             @Param("type") String type,
-            @Param("subType") String subType);
+            @Param("subType") String subType,
+            @Param("typeBack") String typeBack,
+            @Param("subTypeBack") String subTypeBack);
 
     BigDecimal findAllMoney(
             @Param("supplierId") Integer supplierId,
@@ -182,13 +205,15 @@ public interface DepotHeadMapperEx {
             @Param("subType") String subType,
             @Param("hasSupplier") Integer hasSupplier,
             @Param("beginTime") String beginTime,
-            @Param("endTime") String endTime);
+            @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray);
 
     BigDecimal getBuyAndSaleRetailStatistics(
             @Param("type") String type,
             @Param("subType") String subType,
             @Param("beginTime") String beginTime,
-            @Param("endTime") String endTime);
+            @Param("endTime") String endTime,
+            @Param("creatorArray") String[] creatorArray);
 
     List<DepotHeadVo4List> debtList(
             @Param("organId") Long organId,
@@ -202,8 +227,8 @@ public interface DepotHeadMapperEx {
             @Param("materialParam") String materialParam,
             @Param("depotArray") String[] depotArray);
 
-    BigDecimal getFinishDepositByNumber(
-            @Param("number") String number);
+    List<FinishDepositVo> getFinishDepositByNumberList(
+            @Param("numberList") List<String> numberList);
 
     BigDecimal getFinishDepositByNumberExceptCurrent(
             @Param("linkNumber") String linkNumber,

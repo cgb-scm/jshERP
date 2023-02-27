@@ -30,7 +30,7 @@
               </a-col>
               <a-col :md="4" :sm="24">
                 <a-form-item label="商品信息" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                  <a-input placeholder="条码/名称/规格/型号" v-model="queryParam.materialParam"></a-input>
+                  <a-input placeholder="条码/名称/规格/型号/颜色" v-model="queryParam.materialParam"></a-input>
                 </a-form-item>
               </a-col>
               <a-col :md="3" :sm="24">
@@ -72,6 +72,11 @@
               <span slot="action" slot-scope="text, record">
                 <a @click="showMaterialInOutList(record)">{{record.id?'流水':''}}</a>
               </span>
+              <template slot="customRenderStock" slot-scope="text, record">
+                <a-tooltip :title="record.bigUnitStock">
+                  {{text}}
+                </a-tooltip>
+              </template>
           </a-table>
           <a-row :gutter="24" style="margin-top: 8px;text-align:right;">
             <a-col :md="24" :sm="24">
@@ -141,25 +146,27 @@
         // 表头
         columns: [
           {
-            title: '#', dataIndex: 'rowIndex', width:40, align:"center",
+            title: '#', dataIndex: 'rowIndex', width:60, align:"center", fixed: 'left',
             customRender:function (t,r,index) {
               return (t !== '合计') ? (parseInt(index) + 1) : t
             }
           },
-          {title: '条码', dataIndex: 'mBarCode', width: 80},
-          {title: '名称', dataIndex: 'name', width: 140, ellipsis:true},
-          {title: '规格', dataIndex: 'standard', width: 80, ellipsis:true},
-          {title: '型号', dataIndex: 'model', width: 80, ellipsis:true},
-          {title: '颜色', dataIndex: 'color', width: 80, ellipsis:true},
-          {title: '类别', dataIndex: 'categoryName', width: 80, ellipsis:true},
-          {title: '单位', dataIndex: 'unitName', width: 60, ellipsis:true},
-          {title: '单价', dataIndex: 'purchaseDecimal', sorter: (a, b) => a.purchaseDecimal - b.purchaseDecimal, width: 60},
-          {title: '初始库存', dataIndex: 'initialStock', sorter: (a, b) => a.initialStock - b.initialStock, width: 60},
-          {title: '库存', dataIndex: 'currentStock', sorter: (a, b) => a.currentStock - b.currentStock, width: 60},
-          {title: '库存金额', dataIndex: 'currentStockPrice', sorter: (a, b) => a.currentStockPrice - b.currentStockPrice, width: 80},
-          {title: '库存流水', dataIndex: 'action', align:"center", width: 100,
+          {title: '库存流水', dataIndex: 'action', align:"center", width: 100, fixed: 'left',
             scopedSlots: { customRender: 'action' }
-          }
+          },
+          {title: '条码', dataIndex: 'mBarCode', width: 150, fixed: 'left'},
+          {title: '名称', dataIndex: 'name', width: 150, fixed: 'left'},
+          {title: '规格', dataIndex: 'standard'},
+          {title: '型号', dataIndex: 'model'},
+          {title: '颜色', dataIndex: 'color'},
+          {title: '类别', dataIndex: 'categoryName'},
+          {title: '单位', dataIndex: 'unitName'},
+          {title: '单价', dataIndex: 'purchaseDecimal', sorter: (a, b) => a.purchaseDecimal - b.purchaseDecimal},
+          {title: '初始库存', dataIndex: 'initialStock', sorter: (a, b) => a.initialStock - b.initialStock},
+          {title: '库存', dataIndex: 'currentStock', sorter: (a, b) => a.currentStock - b.currentStock,
+            scopedSlots: { customRender: 'customRenderStock' }
+          },
+          {title: '库存金额', dataIndex: 'currentStockPrice', sorter: (a, b) => a.currentStockPrice - b.currentStockPrice}
         ],
         url: {
           list: "/material/getListWithStock"
@@ -169,6 +176,9 @@
     created() {
       this.getDepotData()
       this.loadTreeData()
+    },
+    mounted () {
+      this.scroll.x = 2100
     },
     methods: {
       moment,

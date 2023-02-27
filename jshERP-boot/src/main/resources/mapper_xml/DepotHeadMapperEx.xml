@@ -21,6 +21,9 @@
         <result column="unit_price" jdbcType="DECIMAL" property="UnitPrice" />
         <result column="oper_number" jdbcType="DECIMAL" property="OperNumber" />
         <result column="all_price" jdbcType="DECIMAL" property="AllPrice" />
+        <result column="tax_rate" jdbcType="DECIMAL" property="taxRate" />
+        <result column="tax_money" jdbcType="DECIMAL" property="taxMoney" />
+        <result column="tax_last_money" jdbcType="DECIMAL" property="taxLastMoney" />
         <result column="SName" jdbcType="VARCHAR" property="SName" />
         <result column="DName" jdbcType="VARCHAR" property="DName" />
         <result column="OperTime" jdbcType="VARCHAR" property="OperTime" />
@@ -95,10 +98,19 @@
         </if>
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
-            and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey})
+            and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey}
+                or m.color like #{bindKey} or m.mfrs like #{bindKey} or m.other_field1 like #{bindKey}
+                or m.other_field2 like #{bindKey} or m.other_field3 like #{bindKey})
         </if>
         <if test="organId != null">
             and dh.organ_id=#{organId}
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
         </if>
         <if test="creator != null">
             and dh.creator=#{creator}
@@ -123,6 +135,12 @@
         <if test="accountId != null">
             <bind name="bindAccountId" value="'%'+accountId+'%'"/>
             and (dh.account_id=#{accountId} or dh.account_id_list like #{bindAccountId})
+        </if>
+        <if test="hasDebt != null and hasDebt ==1">
+            and (ifnull(dh.discount_last_money,0)+ifnull(dh.other_money,0)-ifnull(dh.deposit,0)-abs(ifnull(dh.change_amount,0))>0)
+        </if>
+        <if test="hasDebt != null and hasDebt ==0">
+            and (ifnull(dh.discount_last_money,0)+ifnull(dh.other_money,0)-ifnull(dh.deposit,0)-abs(ifnull(dh.change_amount,0))=0)
         </if>
         <if test="remark != null and remark !=''">
             <bind name="bindRemark" value="'%'+remark+'%'"/>
@@ -178,10 +196,19 @@
         </if>
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
-            and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey})
+            and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey}
+            or m.color like #{bindKey} or m.mfrs like #{bindKey} or m.other_field1 like #{bindKey}
+            or m.other_field2 like #{bindKey} or m.other_field3 like #{bindKey})
         </if>
         <if test="organId != null">
             and dh.organ_id=#{organId}
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
         </if>
         <if test="creator != null">
             and dh.creator=#{creator}
@@ -207,6 +234,12 @@
             <bind name="bindAccountId" value="'%'+accountId+'%'"/>
             and (dh.account_id=#{accountId} or dh.account_id_list like #{bindAccountId})
         </if>
+        <if test="hasDebt != null and hasDebt ==1">
+            and (ifnull(dh.discount_last_money,0)+ifnull(dh.other_money,0)-ifnull(dh.deposit,0)-abs(ifnull(dh.change_amount,0))>0)
+        </if>
+        <if test="hasDebt != null and hasDebt ==0">
+            and (ifnull(dh.discount_last_money,0)+ifnull(dh.other_money,0)-ifnull(dh.deposit,0)-abs(ifnull(dh.change_amount,0))=0)
+        </if>
         <if test="remark != null and remark !=''">
             <bind name="bindRemark" value="'%'+remark+'%'"/>
             and (dh.remark like #{bindRemark} or di.remark like #{bindRemark})
@@ -214,17 +247,39 @@
         and ifnull(dh.delete_Flag,'0') !='1') tb
     </select>
 
-    <select id="findMaterialsListByHeaderId" resultType="java.lang.String">
-        select group_concat(concat(jsh_material.name,' ',ifnull(jsh_material.standard,''),' ',ifnull(jsh_material.model,''))) as mName
+    <select id="findMaterialsListMapByHeaderIdList" resultType="com.jsh.erp.datasource.vo.MaterialsListVo">
+        select jsh_depot_item.header_id, group_concat(concat(jsh_material.name,' ',ifnull(jsh_material.standard,''),' ',ifnull(jsh_material.model,''))) as materialsList
         from jsh_depot_item
         left join jsh_material on jsh_depot_item.material_id = jsh_material.Id and ifnull(jsh_material.delete_Flag,'0') !='1'
-        where jsh_depot_item.header_id = #{id}
+        where 1=1
+        <if test="idList.size()>0">
+            and jsh_depot_item.header_id in
+            <foreach collection="idList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        </if>
         and ifnull(jsh_depot_item.delete_flag,'0') !='1'
+        group by jsh_depot_item.header_id
     </select>
 
-    <select id="findByAll" parameterType="com.jsh.erp.datasource.entities.DepotItemExample" resultMap="ResultWithInfoExMap">
-        select dh.number,me.bar_code, m.`name` MName,m.model,m.standard,di.unit_price,di.material_unit as mUnit,di.oper_number,di.all_price,s.supplier SName,d.dName DName,
-        date_format(dh.oper_time, '%Y-%m-%d') OperTime, concat(dh.sub_type,dh.type) as NewType, concat_ws('  ',dh.remark,di.remark) as newRemark
+    <select id="getMaterialCountListByHeaderIdList" resultType="com.jsh.erp.datasource.vo.MaterialCountVo">
+        select header_id, sum(oper_number) materialCount from jsh_depot_item
+        where 1=1
+        <if test="idList.size()>0">
+            and header_id in
+            <foreach collection="idList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        </if>
+        and ifnull(delete_flag,'0') !='1'
+        group by header_id
+    </select>
+
+    <select id="findInOutDetail" parameterType="com.jsh.erp.datasource.entities.DepotItemExample" resultMap="ResultWithInfoExMap">
+        select dh.number,me.bar_code, m.`name` MName,m.model,m.standard,di.unit_price,di.material_unit as mUnit,
+        di.oper_number,di.all_price, ifnull(di.tax_rate,0) tax_rate, ifnull(di.tax_money,0) tax_money, ifnull(di.tax_last_money,0) tax_last_money,
+        s.supplier SName,d.dName DName, date_format(dh.oper_time, '%Y-%m-%d') OperTime, concat(dh.sub_type,dh.type) as NewType,
+        concat_ws('  ',dh.remark,di.remark) as newRemark
         from jsh_depot_head dh
         left join jsh_depot_item di on di.header_id=dh.id and ifnull(di.delete_flag,'0') !='1'
         left join jsh_material m on m.id=di.material_id and ifnull(m.delete_flag,'0') !='1'
@@ -243,6 +298,20 @@
         </if>
         <if test="type != null">
             and dh.type=#{type}
+        </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and (dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            ) or dh.sub_type='采购退货' or dh.sub_type='零售' or dh.sub_type='其它')
         </if>
         <if test="number != null and number !=''">
             <bind name="bindNumber" value="'%'+number+'%'"/>
@@ -264,7 +333,7 @@
         </if>
     </select>
 
-    <select id="findByAllCount" resultType="java.lang.Integer">
+    <select id="findInOutDetailCount" resultType="java.lang.Integer">
         select count(1)
         from jsh_depot_head dh
         left join jsh_depot_item di on di.header_id=dh.id and ifnull(di.delete_flag,'0') !='1'
@@ -284,6 +353,20 @@
         </if>
         <if test="type != null">
             and dh.type=#{type}
+        </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and (dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            ) or dh.sub_type='采购退货' or dh.sub_type='零售' or dh.sub_type='其它')
         </if>
         <if test="number != null and number !=''">
             <bind name="bindNumber" value="'%'+number+'%'"/>
@@ -316,6 +399,20 @@
         and (dh.type=#{type} or dh.sub_type='调拨') and dh.oper_time >=#{beginTime} and dh.oper_time &lt;=#{endTime}
         <if test="oId != null">
             and dh.organ_id = #{oId}
+        </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and (dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            ) or dh.sub_type='采购退货' or dh.sub_type='零售' or dh.sub_type='其它')
         </if>
         <if test="depotList.size()>0">
             <if test="type == '入库'">
@@ -359,6 +456,20 @@
         and (dh.type=#{type} or dh.sub_type='调拨') and dh.oper_time >=#{beginTime} and dh.oper_time &lt;=#{endTime}
         <if test="oId != null">
             and dh.organ_id = #{oId}
+        </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and (dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            ) or dh.sub_type='采购退货' or dh.sub_type='零售' or dh.sub_type='其它')
         </if>
         <if test="depotList.size()>0">
             <if test="type == '入库'">
@@ -419,6 +530,13 @@
             <bind name="bindNumber" value="'%'+number+'%'"/>
             and dh.number like #{bindNumber}
         </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
             and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey} or dh.remark like #{bindKey})
@@ -461,6 +579,13 @@
             <bind name="bindNumber" value="'%'+number+'%'"/>
             and dh.number like #{bindNumber}
         </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
             and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey} or dh.remark like #{bindKey})
@@ -484,6 +609,13 @@
             and dh.type=#{type} and dh.sub_type=#{subType}
             and dh.oper_time &lt;= #{beginTime}
             and ifnull(dh.delete_flag,'0') !='1') preDebtMoney,
+            (select
+            ifnull(sum(dh.discount_last_money),0)+ifnull(sum(dh.other_money),0)-ifnull(sum(dh.deposit),0)-abs(ifnull(sum(dh.change_amount),0))
+            from jsh_depot_head dh
+            where dh.organ_id=s.id
+            and dh.type=#{typeBack} and dh.sub_type=#{subTypeBack}
+            and dh.oper_time &lt;= #{beginTime}
+            and ifnull(dh.delete_flag,'0') !='1') preReturnDebtMoney,
             (select abs(ifnull(sum(ai.each_amount),0)) from jsh_account_item ai
             left join jsh_depot_head dh on ai.bill_id=dh.id and ifnull(dh.delete_flag,'0') !='1'
             where dh.organ_id=s.id
@@ -496,6 +628,13 @@
             and dh.type=#{type} and dh.sub_type=#{subType}
             and dh.oper_time>#{beginTime} and dh.oper_time &lt;= #{endTime}
             and ifnull(dh.delete_flag,'0') !='1') debtMoney,
+            (select
+            ifnull(sum(dh.discount_last_money),0)+ifnull(sum(dh.other_money),0)-ifnull(sum(dh.deposit),0)-abs(ifnull(sum(dh.change_amount),0))
+            from jsh_depot_head dh
+            where dh.organ_id=s.id
+            and dh.type=#{typeBack} and dh.sub_type=#{subTypeBack}
+            and dh.oper_time>#{beginTime} and dh.oper_time &lt;= #{endTime}
+            and ifnull(dh.delete_flag,'0') !='1') returnDebtMoney,
             (select abs(ifnull(sum(ai.each_amount),0)) from jsh_account_item ai
             left join jsh_depot_head dh on ai.bill_id=dh.id and ifnull(dh.delete_flag,'0') !='1'
             where dh.organ_id=s.id
@@ -507,9 +646,16 @@
         <if test="organId != null">
             and s.id = #{organId}
         </if>
+        <if test="organArray != null and organArray !=''">
+            and s.id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
         and ifnull(s.delete_flag,'0') !='1') tb
         where begin_need+preDebtMoney-preBackMoney+debtMoney-backMoney>0
-        order by begin_need+preDebtMoney-preBackMoney+debtMoney-backMoney desc
+        order by begin_need+preDebtMoney-preReturnDebtMoney-preBackMoney+debtMoney-returnDebtMoney-backMoney desc
         <if test="offset != null and rows != null">
             limit #{offset},#{rows}
         </if>
@@ -526,6 +672,13 @@
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time &lt;= #{beginTime}
         and ifnull(dh.delete_flag,'0') !='1') preDebtMoney,
+        (select
+        ifnull(sum(dh.discount_last_money),0)+ifnull(sum(dh.other_money),0)-ifnull(sum(dh.deposit),0)-abs(ifnull(sum(dh.change_amount),0))
+        from jsh_depot_head dh
+        where dh.organ_id=s.id
+        and dh.type=#{typeBack} and dh.sub_type=#{subTypeBack}
+        and dh.oper_time &lt;= #{beginTime}
+        and ifnull(dh.delete_flag,'0') !='1') preReturnDebtMoney,
         (select abs(ifnull(sum(ai.each_amount),0)) from jsh_account_item ai
         left join jsh_depot_head dh on ai.bill_id=dh.id and ifnull(dh.delete_flag,'0') !='1'
         where dh.organ_id=s.id
@@ -538,6 +691,13 @@
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time>#{beginTime} and dh.oper_time &lt;= #{endTime}
         and ifnull(dh.delete_flag,'0') !='1') debtMoney,
+        (select
+        ifnull(sum(dh.discount_last_money),0)+ifnull(sum(dh.other_money),0)-ifnull(sum(dh.deposit),0)-abs(ifnull(sum(dh.change_amount),0))
+        from jsh_depot_head dh
+        where dh.organ_id=s.id
+        and dh.type=#{typeBack} and dh.sub_type=#{subTypeBack}
+        and dh.oper_time>#{beginTime} and dh.oper_time &lt;= #{endTime}
+        and ifnull(dh.delete_flag,'0') !='1') returnDebtMoney,
         (select abs(ifnull(sum(ai.each_amount),0)) from jsh_account_item ai
         left join jsh_depot_head dh on ai.bill_id=dh.id and ifnull(dh.delete_flag,'0') !='1'
         where dh.organ_id=s.id
@@ -549,13 +709,20 @@
         <if test="organId != null">
             and s.id = #{organId}
         </if>
+        <if test="organArray != null and organArray !=''">
+            and s.id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
         and ifnull(s.delete_flag,'0') !='1') tb
-        where begin_need+preDebtMoney-preBackMoney+debtMoney-backMoney>0
+        where begin_need+preDebtMoney-preReturnDebtMoney-preBackMoney+debtMoney-returnDebtMoney-backMoney>0
     </select>
 
     <select id="getStatementAccountTotalPay" resultType="com.jsh.erp.datasource.vo.DepotHeadVo4StatementAccount">
-        select sum(begin_need) begin_need, sum(preDebtMoney) preDebtMoney, sum(preBackMoney) preBackMoney,
-               sum(debtMoney) debtMoney, sum(backMoney) backMoney from
+        select sum(begin_need) begin_need, sum(preDebtMoney) preDebtMoney, sum(preReturnDebtMoney) preReturnDebtMoney, sum(preBackMoney) preBackMoney,
+               sum(debtMoney) debtMoney, sum(returnDebtMoney) returnDebtMoney, sum(backMoney) backMoney from
         (select s.id,
         (case when s.type='供应商' then ifnull(s.begin_need_pay,0) else ifnull(s.begin_need_get,0) end) begin_need,
         (select
@@ -565,6 +732,13 @@
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time &lt;= #{beginTime}
         and ifnull(dh.delete_flag,'0') !='1') preDebtMoney,
+        (select
+        ifnull(sum(dh.discount_last_money),0)+ifnull(sum(dh.other_money),0)-ifnull(sum(dh.deposit),0)-abs(ifnull(sum(dh.change_amount),0))
+        from jsh_depot_head dh
+        where dh.organ_id=s.id
+        and dh.type=#{typeBack} and dh.sub_type=#{subTypeBack}
+        and dh.oper_time &lt;= #{beginTime}
+        and ifnull(dh.delete_flag,'0') !='1') preReturnDebtMoney,
         (select abs(ifnull(sum(ai.each_amount),0)) from jsh_account_item ai
         left join jsh_depot_head dh on ai.bill_id=dh.id and ifnull(dh.delete_flag,'0') !='1'
         where dh.organ_id=s.id
@@ -577,6 +751,13 @@
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time>#{beginTime} and dh.oper_time &lt;= #{endTime}
         and ifnull(dh.delete_flag,'0') !='1') debtMoney,
+        (select
+        ifnull(sum(dh.discount_last_money),0)+ifnull(sum(dh.other_money),0)-ifnull(sum(dh.deposit),0)-abs(ifnull(sum(dh.change_amount),0))
+        from jsh_depot_head dh
+        where dh.organ_id=s.id
+        and dh.type=#{typeBack} and dh.sub_type=#{subTypeBack}
+        and dh.oper_time>#{beginTime} and dh.oper_time &lt;= #{endTime}
+        and ifnull(dh.delete_flag,'0') !='1') returnDebtMoney,
         (select abs(ifnull(sum(ai.each_amount),0)) from jsh_account_item ai
         left join jsh_depot_head dh on ai.bill_id=dh.id and ifnull(dh.delete_flag,'0') !='1'
         where dh.organ_id=s.id
@@ -588,8 +769,15 @@
         <if test="organId != null">
             and s.id = #{organId}
         </if>
+        <if test="organArray != null and organArray !=''">
+            and s.id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
         and ifnull(s.delete_flag,'0') !='1') tb
-        where begin_need+preDebtMoney-preBackMoney+debtMoney-backMoney>0
+        where begin_need+preDebtMoney-preReturnDebtMoney-preBackMoney+debtMoney-returnDebtMoney-backMoney>0
     </select>
 
     <select id="findAllMoney" resultType="java.math.BigDecimal">
@@ -693,6 +881,13 @@
         <if test="endTime != null">
             and oper_time &lt;= #{endTime}
         </if>
+        <if test="creatorArray != null">
+            and creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         and ifnull(delete_flag,'0') !='1'
     </select>
 
@@ -712,6 +907,13 @@
         </if>
         <if test="endTime != null">
             and oper_time &lt;= #{endTime}
+        </if>
+        <if test="creatorArray != null">
+            and creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
         </if>
         and ifnull(delete_flag,'0') !='1'
     </select>
@@ -767,14 +969,21 @@
         and (abs(dh.change_amount)+(select ifnull(sum(abs(ai.each_amount)),0) from jsh_account_item ai where ai.bill_id=dh.id and ifnull(ai.delete_flag,'0') !='1'))
         &lt; (dh.discount_last_money + dh.other_money - ifnull(dh.deposit,0))
         and ifnull(dh.delete_flag,'0') !='1'
-        order by dh.id desc
+        order by dh.oper_time desc
     </select>
 
-    <select id="getFinishDepositByNumber" resultType="java.math.BigDecimal">
-        select ifnull(sum(dh.deposit),0)
+    <select id="getFinishDepositByNumberList" resultType="com.jsh.erp.datasource.vo.FinishDepositVo">
+        select dh.link_number number, ifnull(sum(dh.deposit),0) finishDeposit
         from jsh_depot_head dh
-        where dh.link_number=#{number}
+        where 1=1
+        <if test="numberList.size()>0">
+            and dh.link_number in
+            <foreach collection="numberList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
+        group by dh.link_number
     </select>
 
     <select id="getFinishDepositByNumberExceptCurrent" resultType="java.math.BigDecimal">
@@ -784,5 +993,4 @@
         and dh.number!=#{number}
         and ifnull(dh.delete_flag,'0') !='1'
     </select>
-
 </mapper>

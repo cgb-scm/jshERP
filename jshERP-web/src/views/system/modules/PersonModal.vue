@@ -1,41 +1,52 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="800"
-    :visible="visible"
-    :confirmLoading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:30%;height: 40%;overflow-y: hidden">
-    <template slot="footer">
-      <a-button key="back" v-if="isReadOnly" @click="handleCancel">
-        关闭
-      </a-button>
-    </template>
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form" id="personModal">
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="姓名">
-          <a-input placeholder="请输入姓名" v-decorator.trim="[ 'name', validatorRules.name]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="类型">
-          <a-select placeholder="请选择类型" v-decorator="[ 'type', validatorRules.type]">
-            <a-select-option value="业务员">业务员</a-select-option>
-            <a-select-option value="仓管员">仓管员</a-select-option>
-            <a-select-option value="财务员">财务员</a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="800"
+      :visible="visible"
+      :confirmLoading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:20%;height: 45%;">
+      <template slot="footer">
+        <a-button key="back" v-if="isReadOnly" @click="handleCancel">
+          关闭
+        </a-button>
+      </template>
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form" id="personModal">
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="姓名">
+            <a-input placeholder="请输入姓名" v-decorator.trim="[ 'name', validatorRules.name]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="类型">
+            <a-select placeholder="请选择类型" v-decorator="[ 'type', validatorRules.type]">
+              <a-select-option value="业务员">业务员</a-select-option>
+              <a-select-option value="仓管员">仓管员</a-select-option>
+              <a-select-option value="财务员">财务员</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="排序">
+            <a-input placeholder="请输入排序" v-decorator.trim="[ 'sort' ]" />
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 <script>
   import pick from 'lodash.pick'
   import {addPerson,editPerson,checkPerson } from '@/api/api'
   import {autoJumpNextInput} from "@/utils/util"
+  import {mixinDevice} from '@/utils/mixin'
   export default {
     name: "PersonModal",
+    mixins: [mixinDevice],
     data () {
       return {
         title:"操作",
@@ -78,7 +89,7 @@
         this.model = Object.assign({}, record);
         this.visible = true;
         this.$nextTick(() => {
-          this.form.setFieldsValue(pick(this.model,'name', 'type', 'description'))
+          this.form.setFieldsValue(pick(this.model,'name', 'type', 'sort'))
           autoJumpNextInput('personModal')
         });
       },

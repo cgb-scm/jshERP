@@ -6,9 +6,11 @@ import com.jsh.erp.constants.ExceptionConstants;
 import com.jsh.erp.datasource.entities.*;
 import com.jsh.erp.datasource.mappers.TenantMapper;
 import com.jsh.erp.datasource.mappers.TenantMapperEx;
+import com.jsh.erp.datasource.mappers.UserMapperEx;
 import com.jsh.erp.exception.BusinessRunTimeException;
 import com.jsh.erp.exception.JshException;
 import com.jsh.erp.service.log.LogService;
+import com.jsh.erp.service.user.UserService;
 import com.jsh.erp.utils.StringUtil;
 import com.jsh.erp.utils.Tools;
 import org.slf4j.Logger;
@@ -32,6 +34,12 @@ public class TenantService {
 
     @Resource
     private TenantMapperEx tenantMapperEx;
+
+    @Resource
+    private UserMapperEx userMapperEx;
+
+    @Resource
+    private UserService userService;
 
     @Resource
     private LogService logService;
@@ -63,14 +71,16 @@ public class TenantService {
         return list;
     }
 
-    public List<TenantEx> select(String loginName, String type, String enabled, int offset, int rows)throws Exception {
+    public List<TenantEx> select(String loginName, String type, String enabled, String remark, int offset, int rows)throws Exception {
         List<TenantEx> list= new ArrayList<>();
         try{
-            list = tenantMapperEx.selectByConditionTenant(loginName, type, enabled, offset, rows);
-            if (null != list) {
-                for (TenantEx tenantEx : list) {
-                    tenantEx.setCreateTimeStr(Tools.getCenternTime(tenantEx.getCreateTime()));
-                    tenantEx.setExpireTimeStr(Tools.getCenternTime(tenantEx.getExpireTime()));
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                list = tenantMapperEx.selectByConditionTenant(loginName, type, enabled, remark, offset, rows);
+                if (null != list) {
+                    for (TenantEx tenantEx : list) {
+                        tenantEx.setCreateTimeStr(Tools.getCenternTime(tenantEx.getCreateTime()));
+                        tenantEx.setExpireTimeStr(Tools.getCenternTime(tenantEx.getExpireTime()));
+                    }
                 }
             }
         }catch(Exception e){
@@ -79,10 +89,12 @@ public class TenantService {
         return list;
     }
 
-    public Long countTenant(String loginName, String type, String enabled)throws Exception {
+    public Long countTenant(String loginName, String type, String enabled, String remark)throws Exception {
         Long result=null;
         try{
-            result=tenantMapperEx.countsByTenant(loginName, type, enabled);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                result = tenantMapperEx.countsByTenant(loginName, type, enabled, remark);
+            }
         }catch(Exception e){
             JshException.readFail(logger, e);
         }
@@ -101,7 +113,7 @@ public class TenantService {
             if(tenant.getExpireTime()==null) {
                 tenant.setExpireTime(Tools.addDays(new Date(), tryDayLimit)); //租户允许试用的天数
             }
-            result=tenantMapper.insertSelective(tenant);
+            result = tenantMapper.insertSelective(tenant);
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -113,7 +125,13 @@ public class TenantService {
         Tenant tenant = JSONObject.parseObject(obj.toJSONString(), Tenant.class);
         int result=0;
         try{
-            result=tenantMapper.updateByPrimaryKeySelective(tenant);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                //如果租户下的用户限制数量为1，则将该租户之外的用户全部禁用
+                if (1 == tenant.getUserNumLimit()) {
+                    userMapperEx.disableUserByLimit(tenant.getTenantId());
+                }
+                result = tenantMapper.updateByPrimaryKeySelective(tenant);
+            }
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -124,7 +142,9 @@ public class TenantService {
     public int deleteTenant(Long id, HttpServletRequest request)throws Exception {
         int result=0;
         try{
-            result= tenantMapper.deleteByPrimaryKey(id);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                result = tenantMapper.deleteByPrimaryKey(id);
+            }
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -138,7 +158,9 @@ public class TenantService {
         example.createCriteria().andIdIn(idList);
         int result=0;
         try{
-            result= tenantMapper.deleteByExample(example);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                result = tenantMapper.deleteByExample(example);
+            }
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -171,21 +193,23 @@ public class TenantService {
     public int batchSetStatus(Boolean status, String ids)throws Exception {
         int result=0;
         try{
-            String statusStr ="";
-            if(status) {
-                statusStr ="批量启用";
-            } else {
-                statusStr ="批量禁用";
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                String statusStr = "";
+                if (status) {
+                    statusStr = "批量启用";
+                } else {
+                    statusStr = "批量禁用";
+                }
+                logService.insertLog("用户",
+                        new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(ids).append("-").append(statusStr).toString(),
+                        ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+                List<Long> idList = StringUtil.strToLongList(ids);
+                Tenant tenant = new Tenant();
+                tenant.setEnabled(status);
+                TenantExample example = new TenantExample();
+                example.createCriteria().andIdIn(idList);
+                result = tenantMapper.updateByExampleSelective(tenant, example);
             }
-            logService.insertLog("用户",
-                    new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(ids).append("-").append(statusStr).toString(),
-                    ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
-            List<Long> idList = StringUtil.strToLongList(ids);
-            Tenant tenant = new Tenant();
-            tenant.setEnabled(status);
-            TenantExample example = new TenantExample();
-            example.createCriteria().andIdIn(idList);
-            result = tenantMapper.updateByExampleSelective(tenant, example);
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }

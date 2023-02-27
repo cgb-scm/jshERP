@@ -8,10 +8,10 @@
           <a-form layout="inline" @keyup.enter.native="searchQuery">
             <a-row :gutter="24">
               <a-col :md="6" :sm="24">
-                <a-form-item label="供应商" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                  <a-select placeholder="选择供应商" v-model="queryParam.organId"
+                <a-form-item label="往来单位" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                  <a-select placeholder="选择往来单位" v-model="queryParam.organId"
                     :dropdownMatchSelectWidth="false" showSearch allow-clear optionFilterProp="children">
-                    <a-select-option v-for="(item,index) in supList" :key="index" :value="item.id">
+                    <a-select-option v-for="(item,index) in organList" :key="index" :value="item.id">
                       {{ item.supplier }}
                     </a-select-option>
                   </a-select>
@@ -104,9 +104,10 @@
   import { JeecgListMixin } from '@/mixins/JeecgListMixin'
   import { getNowFormatYear, openDownloadDialog, sheet2blob} from "@/utils/util"
   import {getAction} from '@/api/manage'
-  import {findBySelectSup} from '@/api/api'
+  import {findBySelectOrgan} from '@/api/api'
   import JEllipsis from '@/components/jeecg/JEllipsis'
   import moment from 'moment'
+  import Vue from 'vue'
   export default {
     name: "InMaterialCount",
     mixins:[JeecgListMixin],
@@ -129,7 +130,8 @@
           depotId: '',
           beginTime: getNowFormatYear() + '-01-01',
           endTime: moment().format('YYYY-MM-DD'),
-          type: "入库"
+          type: "入库",
+          roleType: Vue.ls.get('roleType'),
         },
         ipagination:{
           pageSize: 11,
@@ -138,25 +140,25 @@
         dateFormat: 'YYYY-MM-DD',
         currentDay: moment().format('YYYY-MM-DD'),
         defaultTimeStr: '',
-        supList: [],
+        organList: [],
         depotList: [],
         tabKey: "1",
         // 表头
         columns: [
           {
-            title: '#', dataIndex: 'rowIndex', width:40, align:"center",
+            title: '#', dataIndex: 'rowIndex', width:60, align:"center", fixed: 'left',
             customRender:function (t,r,index) {
               return (t !== '合计') ? (parseInt(index) + 1) : t
             }
           },
-          {title: '条码', dataIndex: 'barCode', width: 120},
-          {title: '名称', dataIndex: 'mName', width: 120, ellipsis:true},
-          {title: '规格', dataIndex: 'standard', width: 100, ellipsis:true},
-          {title: '型号', dataIndex: 'model', width: 100, ellipsis:true},
-          {title: '类别', dataIndex: 'categoryName', width: 120, ellipsis:true},
-          {title: '单位', dataIndex: 'materialUnit', width: 120, ellipsis:true},
-          {title: '入库数量', dataIndex: 'numSum', sorter: (a, b) => a.numSum - b.numSum, width: 120},
-          {title: '入库金额', dataIndex: 'priceSum', sorter: (a, b) => a.priceSum - b.priceSum, width: 120}
+          {title: '条码', dataIndex: 'barCode', width: 200, fixed: 'left'},
+          {title: '名称', dataIndex: 'mName', width: 200, fixed: 'left'},
+          {title: '规格', dataIndex: 'standard'},
+          {title: '型号', dataIndex: 'model'},
+          {title: '类别', dataIndex: 'categoryName'},
+          {title: '单位', dataIndex: 'materialUnit'},
+          {title: '入库数量', dataIndex: 'numSum', sorter: (a, b) => a.numSum - b.numSum},
+          {title: '入库金额', dataIndex: 'priceSum', sorter: (a, b) => a.priceSum - b.priceSum}
         ],
         url: {
           list: "/depotHead/findInOutMaterialCount",
@@ -184,9 +186,9 @@
       },
       initSupplier() {
         let that = this;
-        findBySelectSup({}).then((res)=>{
+        findBySelectOrgan({}).then((res)=>{
           if(res) {
-            that.supList = res;
+            that.organList = res;
           }
         });
       },

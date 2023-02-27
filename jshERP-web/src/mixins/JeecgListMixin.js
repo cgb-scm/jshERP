@@ -6,11 +6,15 @@
 import { filterObj,getNowFormatStr } from '@/utils/util';
 import { deleteAction, getAction, postAction, downFile, getFileAccessHttpUrl } from '@/api/manage'
 import Vue from 'vue'
+import VueDraggableResizable from 'vue-draggable-resizable'
 import { ACCESS_TOKEN } from "@/store/mutation-types"
 import {mixinDevice} from '@/utils/mixin.js'
 
 export const JeecgListMixin = {
   mixins: [mixinDevice],
+  components: {
+    VueDraggableResizable
+  },
   data(){
     return {
       //token header
@@ -59,12 +63,12 @@ export const JeecgListMixin = {
       /** 是否加载时就执行 */
       disableMixinCreated: false,
       /* 按钮权限 */
-      btnEnableList: ''
+      btnEnableList: '',
     }
   },
   created() {
     if(this.isDesktop()) {
-      this.cardStyle = 'height:' + (document.documentElement.clientHeight-125) + 'px'
+      this.cardStyle = 'height:' + (document.documentElement.clientHeight-100) + 'px'
     }
     if(!this.disableMixinCreated){
       //console.log(' -- mixin created -- ')
@@ -270,8 +274,8 @@ export const JeecgListMixin = {
       // 新增/修改 成功时，重载列表
       this.loadData();
     },
-    handleDetail:function(record, type){
-      this.$refs.modalDetail.show(record, type);
+    handleDetail:function(record, type, prefixNo){
+      this.$refs.modalDetail.show(record, type, prefixNo);
       this.$refs.modalDetail.title=type+"-详情";
     },
     /* 导出 */
@@ -311,7 +315,7 @@ export const JeecgListMixin = {
     },
     /* 导入 */
     handleImportExcel(info){
-      this.loading = true
+      this.confirmLoading = true
       if (info.file.status !== 'uploading') {
         console.log(info.file, info.fileList);
       }
@@ -321,17 +325,18 @@ export const JeecgListMixin = {
           if (info.file.response.code === 200) {
             this.$message.success(info.file.response.data || `${info.file.name} 文件上传成功`)
           } else {
-            this.$message.warning(info.file.response.data)
+            this.$message.warning(info.file.response.data, 8)
           }
-          this.loadData()
-          this.loading = false
+          this.confirmLoading = false
+          this.visible = false
+          this.$emit('ok')
         } else {
           this.$message.error(`${info.file.name} ${info.file.response.data}.`);
-          this.loading = false
+          this.confirmLoading = false
         }
       } else if (info.file.status === 'error') {
         this.$message.error(`文件上传失败: ${info.file.msg} `)
-        this.loading = false
+        this.confirmLoading = false
       }
     },
     /* 图片预览 */
@@ -392,6 +397,44 @@ export const JeecgListMixin = {
         this.scroll.y = document.documentElement.clientHeight-searchWrapperDomLen-operatorDomLen-basicLength
       }
     },
+    //拖拽组件
+    handleDrag(column){
+      return {
+        header: {
+          cell: (h, props, children) => {
+            const { key, ...restProps } = props
+            const col = column.find((col) => {
+              const k = col.dataIndex || col.key
+              return k === key
+            })
+
+            if (!col || !col.width) {
+              return h('th', { ...restProps }, [...children])
+            }
+
+            const dragProps = {
+              key: col.dataIndex || col.key,
+              class: 'table-draggable-handle',
+              attrs: {
+                w: 10,
+                x: col.width,
+                z: 1,
+                axis: 'x',
+                draggable: true,
+                resizable: false,
+              },
+              on: {
+                dragging: (x, y) => {
+                  col.width = Math.max(x, 1)
+                },
+              },
+            }
+            const drag = h(VueDraggableResizable, { ...dragProps })
+            return h('th', { ...restProps, class: 'resize-table-th' }, [...children, drag])
+          },
+        }
+      }
+    },
     /** 表格增加合计行 */
     tableAddTotalRow(columns, dataSource) {
       if(dataSource.length>0 && this.ipagination.pageSize%10===1) {
@@ -399,9 +442,10 @@ export const JeecgListMixin = {
         let numKey = 'rowIndex'
         let totalRow = { [numKey]: '合计' }
         //需要合计的列
-        let parseCols = 'initialStock,currentStock,currentStockPrice,initialAmount,thisMonthAmount,currentAmount,inSum,inSumPrice,inOutSumPrice,' +
-          'outSum,outSumPrice,outInSumPrice,operNumber,allPrice,numSum,priceSum,prevSum,thisSum,thisAllPrice,changeAmount,' +
-          'allPrice,currentNumber,lowSafeStock,highSafeStock,lowCritical,highCritical,preNeed,debtMoney,backMoney,allNeed'
+        let parseCols = 'initialStock,currentStock,currentStockPrice,initialAmount,thisMonthAmount,currentAmount,inSum,inSumPrice,' +
+          'inOutSumPrice,outSum,outSumPrice,outInSumPrice,operNumber,allPrice,numSum,priceSum,prevSum,thisSum,thisAllPrice,changeAmount,' +
+          'allPrice,taxMoney,currentNumber,lowSafeStock,highSafeStock,lowCritical,highCritical,preNeed,debtMoney,backMoney,allNeed,' +
+          'needDebt,realNeedDebt,finishDebt,debt'
         columns.forEach(column => {
           let { key, dataIndex } = column
           if (![key, dataIndex].includes(numKey)) {

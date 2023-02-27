@@ -60,6 +60,12 @@
             <span slot="action" slot-scope="text, record">
               <a @click="showDebtAccountList(record)">{{record.id?'详情':''}}</a>
             </span>
+            <span slot="customTitle">
+              期末应付
+              <a-tooltip title="期末应付=期初应付+本期欠款-本期付款">
+                <a-icon type="question-circle" />
+              </a-tooltip>
+            </span>
           </a-table>
           <a-row :gutter="24" style="margin-top: 8px;text-align:right;">
             <a-col :md="24" :sm="24">
@@ -91,7 +97,7 @@
   import { JeecgListMixin } from '@/mixins/JeecgListMixin'
   import { getNowFormatYear, openDownloadDialog, sheet2blob} from "@/utils/util"
   import { getAction } from '@/api/manage'
-  import {findBySelectSup, findBillDetailByNumber,findFinancialDetailByNumber} from '@/api/api'
+  import {findBySelectSup} from '@/api/api'
   import JEllipsis from '@/components/jeecg/JEllipsis'
   import moment from 'moment'
   export default {
@@ -131,23 +137,23 @@
         // 表头
         columns: [
           {
-            title: '#', dataIndex: 'rowIndex', width:40, align:"center",
+            title: '#', dataIndex: 'rowIndex', width:60, align:"center", fixed: 'left',
             customRender:function (t,r,index) {
               return (t !== '合计') ? (parseInt(index) + 1) : t
             }
           },
-          {title: '供应商', dataIndex: 'supplier', width: 150, ellipsis:true},
-          {title: '联系人', dataIndex: 'contacts', width: 100, ellipsis:true},
-          {title: '手机号码', dataIndex: 'telephone', width: 100},
-          {title: '联系电话', dataIndex: 'phoneNum', width: 100},
-          {title: '电子邮箱', dataIndex: 'email', width: 100},
-          {title: '期初应付', dataIndex: 'preNeed', width: 80},
-          {title: '本期欠款', dataIndex: 'debtMoney', width: 80},
-          {title: '本期付款', dataIndex: 'backMoney', width: 80},
-          {title: '期末应付', dataIndex: 'allNeed', width: 80},
-          {title: '欠款详情', dataIndex: 'action', align:"center", width: 80,
+          {title: '欠款详情', dataIndex: 'action', align:"center", width: 150, fixed: 'left',
             scopedSlots: { customRender: 'action' }
-          }
+          },
+          {title: '供应商', dataIndex: 'supplier', width: 200, fixed: 'left'},
+          {title: '联系人', dataIndex: 'contacts'},
+          {title: '手机号码', dataIndex: 'telephone'},
+          {title: '联系电话', dataIndex: 'phoneNum'},
+          {title: '电子邮箱', dataIndex: 'email'},
+          {title: '期初应付', dataIndex: 'preNeed'},
+          {title: '本期欠款', dataIndex: 'debtMoney'},
+          {title: '本期付款', dataIndex: 'backMoney'},
+          {dataIndex: 'allNeed', slots: { title: 'customTitle' } }
         ],
         url: {
           list: "/depotHead/getStatementAccount",
@@ -157,6 +163,9 @@
     created () {
       this.initSupplier()
       this.defaultTimeStr = [moment(getNowFormatYear() + '-01-01', this.dateFormat), moment(this.currentDay, this.dateFormat)]
+    },
+    mounted () {
+      this.scroll.x = 1620
     },
     methods: {
       getQueryParams() {
@@ -178,23 +187,6 @@
         console.log(dateString[0],dateString[1]);
         this.queryParam.beginTime=dateString[0];
         this.queryParam.endTime=dateString[1];
-      },
-      myHandleDetail(record) {
-        if(record.type === '收入' || record.type === '支出' || record.type === '付款') {
-          findFinancialDetailByNumber({ billNo: record.number }).then((res) => {
-            if (res && res.code === 200) {
-              this.$refs.modalFinancialDetail.show(res.data, record.type);
-              this.$refs.modalFinancialDetail.title="详情";
-            }
-          })
-        } else {
-          findBillDetailByNumber({ number: record.number }).then((res) => {
-            if (res && res.code === 200) {
-              this.$refs.modalBillDetail.show(res.data, record.type);
-              this.$refs.modalBillDetail.title="详情";
-            }
-          })
-        }
       },
       loadData(arg) {
         //加载数据 若传入参数1则加载第一页的内容

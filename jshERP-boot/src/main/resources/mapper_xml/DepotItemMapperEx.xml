@@ -25,6 +25,7 @@
         <result column="MColor" jdbcType="VARCHAR" property="MColor" />
         <result column="MStandard" jdbcType="VARCHAR" property="MStandard" />
         <result column="MMfrs" jdbcType="VARCHAR" property="MMfrs" />
+        <result column="weight" jdbcType="VARCHAR" property="weight" />
         <result column="MOtherField1" jdbcType="VARCHAR" property="MOtherField1" />
         <result column="MOtherField2" jdbcType="VARCHAR" property="MOtherField2" />
         <result column="MOtherField3" jdbcType="VARCHAR" property="MOtherField3" />
@@ -47,6 +48,7 @@
         <result column="MOtherField1" jdbcType="VARCHAR" property="MOtherField1" />
         <result column="MOtherField2" jdbcType="VARCHAR" property="MOtherField2" />
         <result column="MOtherField3" jdbcType="VARCHAR" property="MOtherField3" />
+        <result column="unit_id" jdbcType="BIGINT" property="unitId" />
         <result column="unit_name" jdbcType="VARCHAR" property="unitName" />
         <result column="MColor" jdbcType="VARCHAR" property="MColor" />
         <result column="purchase_decimal" jdbcType="DECIMAL" property="purchaseDecimal" />
@@ -168,6 +170,19 @@
         <if test="sku != null and sku !=''">
             and di.sku = #{sku}
         </if>
+        <if test="batchNumber != null and batchNumber !=''">
+            and di.batch_number = #{batchNumber}
+        </if>
+        <if test="number != null and number !=''">
+            <bind name="bindNumber" value="'%'+number+'%'"/>
+            and dh.number like #{bindNumber}
+        </if>
+        <if test="beginTime != null and beginTime !=''">
+            and dh.oper_time >= #{beginTime}
+        </if>
+        <if test="endTime != null and endTime !=''">
+            and dh.oper_time &lt;= #{endTime}
+        </if>
         and di.material_id = #{mId}
         and ifnull(dh.delete_flag,'0') !='1'
         union all
@@ -188,6 +203,19 @@
         </if>
         <if test="sku != null and sku !=''">
             and di.sku = #{sku}
+        </if>
+        <if test="batchNumber != null and batchNumber !=''">
+            and di.batch_number = #{batchNumber}
+        </if>
+        <if test="number != null and number !=''">
+            <bind name="bindNumber" value="'%'+number+'%'"/>
+            and dh.number like #{bindNumber}
+        </if>
+        <if test="beginTime != null and beginTime !=''">
+            and dh.oper_time >= #{beginTime}
+        </if>
+        <if test="endTime != null and endTime !=''">
+            and dh.oper_time &lt;= #{endTime}
         </if>
         and di.material_id = #{mId}
         and ifnull(dh.delete_flag,'0') !='1') tb
@@ -213,6 +241,19 @@
         <if test="sku != null and sku !=''">
             and di.sku = #{sku}
         </if>
+        <if test="batchNumber != null and batchNumber !=''">
+            and di.batch_number = #{batchNumber}
+        </if>
+        <if test="number != null and number !=''">
+            <bind name="bindNumber" value="'%'+number+'%'"/>
+            and dh.number like #{bindNumber}
+        </if>
+        <if test="beginTime != null and beginTime !=''">
+            and dh.oper_time >= #{beginTime}
+        </if>
+        <if test="endTime != null and endTime !=''">
+            and dh.oper_time &lt;= #{endTime}
+        </if>
         and di.material_id =#{mId}
         and ifnull(dh.delete_flag,'0') !='1'
         union all
@@ -228,12 +269,25 @@
         <if test="sku != null and sku !=''">
             and di.sku = #{sku}
         </if>
+        <if test="batchNumber != null and batchNumber !=''">
+            and di.batch_number = #{batchNumber}
+        </if>
+        <if test="number != null and number !=''">
+            <bind name="bindNumber" value="'%'+number+'%'"/>
+            and dh.number like #{bindNumber}
+        </if>
+        <if test="beginTime != null and beginTime !=''">
+            and dh.oper_time >= #{beginTime}
+        </if>
+        <if test="endTime != null and endTime !=''">
+            and dh.oper_time &lt;= #{endTime}
+        </if>
         and di.material_id = #{mId}
         and ifnull(dh.delete_flag,'0') !='1') tb
     </select>
 
     <select id="getDetailList" parameterType="com.jsh.erp.datasource.entities.DepotItemExample" resultMap="ResultWithInfoExMap">
-        select di.*,m.name MName,m.model MModel,m.unit MaterialUnit,m.color MColor,m.standard MStandard,m.mfrs MMfrs,
+        select di.*,m.name MName,m.model MModel,m.unit MaterialUnit,m.color MColor,m.standard MStandard,m.mfrs MMfrs,m.weight,
         m.other_field1 MOtherField1,m.other_field2 MOtherField2,m.other_field3 MOtherField3,m.enable_serial_number, m.enable_batch_number,
         dp1.name DepotName,dp2.name AnotherDepotName, me.bar_code barCode, me.purchase_decimal
         from jsh_depot_item di
@@ -249,7 +303,7 @@
     <select id="findByAll" parameterType="com.jsh.erp.datasource.entities.DepotItemExample" resultMap="ResultByMaterial">
         select m.id MId, me.bar_code, m.name MName, m.mfrs MMfrs, m.model MModel, m.standard MStandard,
         m.other_field1 MOtherField1,m.other_field2 MOtherField2,m.other_field3 MOtherField3,
-        concat_ws('', m.unit, u.basic_unit) MaterialUnit, m.color MColor, u.name unit_name, ifnull(me.purchase_decimal,0) purchase_decimal
+        concat_ws('', m.unit, u.basic_unit) MaterialUnit, m.color MColor, m.unit_id, u.name unit_name, ifnull(me.purchase_decimal,0) purchase_decimal
         from jsh_material m
         left join jsh_material_extend me on me.material_id=m.id and ifnull(me.delete_Flag,'0') !='1'
         left join jsh_depot_item di on di.material_id=m.id and ifnull(di.delete_Flag,'0') !='1'
@@ -315,6 +369,13 @@
         <if test="endTime != null">
             and dh.oper_time &lt;= #{endTime}
         </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         and ifnull(m.delete_flag,'0') !='1'
         group by m.id
         order by m.id desc
@@ -346,6 +407,13 @@
         <if test="endTime != null">
             and dh.oper_time &lt;= #{endTime}
         </if>
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         and ifnull(di.delete_flag,'0') !='1'
         group by m.id) cc
     </select>
@@ -357,6 +425,13 @@
         and di.material_id =#{MId}
         and dh.oper_time &gt;= #{beginTime}
         and dh.oper_time &lt;= #{endTime}
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
         and ifnull(di.delete_flag,'0') !='1'
     </select>
@@ -368,6 +443,13 @@
         and di.material_id =#{MId}
         and dh.oper_time &gt;= #{beginTime}
         and dh.oper_time &lt;= #{endTime}
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
         and ifnull(di.delete_flag,'0') !='1'
     </select>
@@ -378,16 +460,30 @@
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time &gt;= #{beginTime}
         and dh.oper_time &lt;= #{endTime}
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
     </select>
 
     <select id="inOrOutRetailPrice" resultType="java.math.BigDecimal">
         select ifnull(sum(total_price),0) as allMoney from jsh_depot_head dh
         where 1=1
-          and dh.type=#{type} and dh.sub_type=#{subType}
-          and dh.oper_time &gt;= #{beginTime}
-          and dh.oper_time &lt;= #{endTime}
-          and ifnull(dh.delete_flag,'0') !='1'
+        and dh.type=#{type} and dh.sub_type=#{subType}
+        and dh.oper_time &gt;= #{beginTime}
+        and dh.oper_time &lt;= #{endTime}
+        <if test="creatorArray != null">
+            and dh.creator in (
+            <foreach collection="creatorArray" item="creator" separator=",">
+                #{creator}
+            </foreach>
+            )
+        </if>
+        and ifnull(dh.delete_flag,'0') !='1'
     </select>
 
     <select id="getStockCheckSumByDepotList"  resultType="java.math.BigDecimal">
@@ -547,7 +643,7 @@
         select m.id MId, m.name MName, me.bar_code, m.mfrs MMfrs, m.model MModel, m.standard MStandard,m.color MColor,
         m.other_field1 MOtherField1,m.other_field2 MOtherField2,m.other_field3 MOtherField3,d.name depotName,
         m.unit MaterialUnit, u.basic_unit unit_name,mcs.current_number,
-        ifnull(mis.low_safe_stock,0) low_safe_stock, ifnull(mis.high_safe_stock,0) high_safe_stock
+        mis.low_safe_stock, mis.high_safe_stock
         from jsh_material m
         left join jsh_material_extend me on me.material_id=m.id and ifnull(me.delete_Flag,'0') !='1'
         left join jsh_material_initial_stock mis on mis.material_id=m.id and ifnull(mis.delete_Flag,'0') !='1'
@@ -559,7 +655,7 @@
         and ifnull(m.delete_flag,'0') !='1'
         and mis.depot_id=mcs.depot_id
         and ((ifnull(mis.low_safe_stock,0)!=0 and mcs.current_number &lt; ifnull(mis.low_safe_stock,0))
-            or (ifnull(mis.low_safe_stock,0)!=0 and mcs.current_number > ifnull(mis.high_safe_stock,0)))
+            or (ifnull(mis.high_safe_stock,0)!=0 and mcs.current_number > ifnull(mis.high_safe_stock,0)))
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
             and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey})
@@ -645,8 +741,7 @@
         select id, bar_code, name, standard, model, batch_number, expiration_date, sum(oper_number) total_num  from
         (select di.batch_number id, me.bar_code, m.name, m.standard, m.model,di.batch_number,di.expiration_date,
         di.oper_number*(case dh.type when '入库' then 1 when '出库' then -1 end) as oper_number
-        from
-        jsh_depot_head dh
+        from jsh_depot_head dh
         left join jsh_depot_item di on dh.id=di.header_id
         left join jsh_material m on m.id=di.material_id and ifnull(m.delete_flag, '0') != '1'
         left join jsh_material_extend me on me.material_id=m.id and ifnull(me.delete_flag,'0') !='1'
@@ -660,6 +755,9 @@
         </if>
         <if test="batchNumber != null">
             and di.batch_number= #{batchNumber}
+        </if>
+        <if test="number != null">
+            and dh.number!= #{number}
         </if>
         and m.enable_batch_number =1
         and di.delete_flag!=1) tb
@@ -697,5 +795,14 @@
         and ifnull(dh.delete_flag,'0') !='1'
         and di.material_extend_id=#{meId}
         and di.batch_number=#{batchNumber}
+    </select>
+
+    <select id="getDepotItemByBatchNumber" resultType="com.jsh.erp.datasource.entities.DepotItem">
+        select di.* from jsh_depot_head dh
+        left join jsh_depot_item di on dh.id=di.header_id and ifnull(di.delete_flag,'0') !='1'
+        where 1=1
+        and ifnull(dh.delete_flag,'0') !='1'
+        and di.batch_number = #{batchNumber}
+        and dh.type = '入库'
     </select>
 </mapper>

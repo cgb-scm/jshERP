@@ -4,19 +4,17 @@
     :width="width"
     :visible="visible"
     :confirmLoading="confirmLoading"
-    :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
     v-bind:prefixNo="prefixNo"
     switchHelp
     switchFullscreen
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
     :id="prefixNo"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    style="top:20px;height: 95%;">
     <template slot="footer">
       <a-button @click="handleCancel">取消</a-button>
-      <a-button v-if="isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
+      <a-button v-if="checkFlag && isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
       <a-button type="primary" @click="handleOk">保存</a-button>
     </template>
     <a-spin :spinning="confirmLoading">
@@ -75,13 +73,13 @@
           <template #buttonAfter>
             <a-row v-if="rowCanEdit" :gutter="24" style="float:left;padding-bottom: 5px;" data-step="4" data-title="扫码录入" data-intro="此功能支持扫码枪扫描商品条码进行录入">
               <a-col v-if="scanStatus" :md="6" :sm="24">
-                <a-button @click="scanEnter">扫码录入</a-button>
+                <a-button @click="scanEnter" style="margin-right: 8px">扫码录入</a-button>
               </a-col>
               <a-col v-if="!scanStatus" :md="16" :sm="24" style="padding: 0 6px 0 12px">
                 <a-input placeholder="请扫码商品条码并回车" v-model="scanBarCode" @pressEnter="scanPressEnter" ref="scanBarCode"/>
               </a-col>
-              <a-col v-if="!scanStatus" :md="6" :sm="24" style="padding: 0px">
-                <a-button @click="stopScan">收起扫码</a-button>
+              <a-col v-if="!scanStatus" :md="6" :sm="24" style="padding: 0px 12px 0 0">
+                <a-button @click="stopScan" style="margin-right: 8px">收起扫码</a-button>
               </a-col>
             </a-row>
             <a-row :gutter="24" style="float:left;padding-bottom: 5px;">
@@ -91,7 +89,7 @@
                     <a-menu-item key="1" @click="handleBatchSetDepot"><a-icon type="setting"/>批量设置</a-menu-item>
                     <a-menu-item v-if="isTenant" key="2" @click="addDepot"><a-icon type="plus"/>新增仓库</a-menu-item>
                   </a-menu>
-                  <a-button style="margin-left: 8px">仓库操作 <a-icon type="down" /></a-button>
+                  <a-button>仓库操作 <a-icon type="down" /></a-button>
                 </a-dropdown>
               </a-col>
             </a-row>
@@ -113,13 +111,13 @@
           <a-col :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="优惠率" data-step="5" data-title="优惠率"
                          data-intro="针对单据明细中商品总金额进行优惠的比例">
-              <a-input style="width:185px;" placeholder="请输入优惠率" v-decorator.trim="[ 'discount' ]" suffix="%" @keyup="onKeyUpDiscount"/>
+              <a-input style="width:185px;" placeholder="请输入优惠率" v-decorator.trim="[ 'discount' ]" suffix="%" @change="onChangeDiscount"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="付款优惠" data-step="6" data-title="付款优惠"
                          data-intro="针对单据明细中商品总金额进行优惠的金额">
-              <a-input placeholder="请输入付款优惠" v-decorator.trim="[ 'discountMoney' ]" @keyup="onKeyUpDiscountMoney"/>
+              <a-input placeholder="请输入付款优惠" v-decorator.trim="[ 'discountMoney' ]" @change="onChangeDiscountMoney"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
@@ -131,7 +129,7 @@
           <a-col :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="其它费用" data-step="8" data-title="其它费用"
                          data-intro="比如快递费、油费、过路费">
-              <a-input placeholder="请输入其它费用" v-decorator.trim="[ 'otherMoney' ]" @keyup="onKeyUpOtherMoney"/>
+              <a-input placeholder="请输入其它费用" v-decorator.trim="[ 'otherMoney' ]" @change="onChangeOtherMoney"/>
             </a-form-item>
           </a-col>
         </a-row>
@@ -158,12 +156,12 @@
           </a-col>
           <a-col v-if="depositStatus" :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="扣除订金">
-              <a-input v-decorator.trim="[ 'deposit' ]" @keyup="onKeyUpDeposit"/>
+              <a-input v-decorator.trim="[ 'deposit' ]" @change="onChangeDeposit"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="本次付款">
-              <a-input placeholder="请输入本次付款" v-decorator.trim="[ 'changeAmount', validatorRules.price ]" @keyup="onKeyUpChangeAmount"/>
+              <a-input placeholder="请输入本次付款" v-decorator.trim="[ 'changeAmount', validatorRules.changeAmount ]" @change="onChangeChangeAmount"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
@@ -256,25 +254,23 @@
           loading: false,
           dataSource: [],
           columns: [
-            { title: '仓库名称', key: 'depotId', width: '7%', type: FormTypes.select, placeholder: '请选择${title}', options: [],
+            { title: '仓库名称', key: 'depotId', width: '8%', type: FormTypes.select, placeholder: '请选择${title}', options: [],
               allowSearch:true, validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '条码', key: 'barCode', width: '8%', type: FormTypes.popupJsh, kind: 'material', multi: true,
+            { title: '条码', key: 'barCode', width: '10%', type: FormTypes.popupJsh, kind: 'material', multi: true,
               validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '名称', key: 'name', width: '6%', type: FormTypes.normal },
-            { title: '规格', key: 'standard', width: '5%', type: FormTypes.normal },
-            { title: '型号', key: 'model', width: '5%', type: FormTypes.normal },
+            { title: '名称', key: 'name', width: '8%', type: FormTypes.normal },
+            { title: '规格', key: 'standard', width: '7%', type: FormTypes.normal },
+            { title: '型号', key: 'model', width: '7%', type: FormTypes.normal },
             { title: '颜色', key: 'color', width: '5%', type: FormTypes.normal },
             { title: '扩展信息', key: 'materialOther', width: '5%', type: FormTypes.normal },
             { title: '库存', key: 'stock', width: '5%', type: FormTypes.normal },
             { title: '单位', key: 'unit', width: '4%', type: FormTypes.normal },
-            { title: '序列号', key: 'snList', width: '12%', type: FormTypes.input, placeholder: '多个序列号请用逗号隔开',
-              validateRules: [{ pattern: /^\S{1,100}$/, message: '请小于100位字符' }]
-            },
-            { title: '批号', key: 'batchNumber', width: '5%', type: FormTypes.input },
+            { title: '序列号', key: 'snList', width: '12%', type: FormTypes.popupJsh, kind: 'snAdd', multi: true },
+            { title: '批号', key: 'batchNumber', width: '7%', type: FormTypes.input },
             { title: '有效期', key: 'expirationDate',width: '7%', type: FormTypes.date },
-            { title: '多属性', key: 'sku', width: '4%', type: FormTypes.normal },
+            { title: '多属性', key: 'sku', width: '9%', type: FormTypes.normal },
             { title: '原数量', key: 'preNumber', width: '4%', type: FormTypes.normal },
             { title: '已入库', key: 'finishNumber', width: '4%', type: FormTypes.normal },
             { title: '数量', key: 'operNumber', width: '4%', type: FormTypes.inputNumber, statistics: true,
@@ -284,8 +280,8 @@
             { title: '金额', key: 'allPrice', width: '5%', type: FormTypes.inputNumber, statistics: true },
             { title: '税率', key: 'taxRate', width: '4%', type: FormTypes.inputNumber,placeholder: '%'},
             { title: '税额', key: 'taxMoney', width: '5%', type: FormTypes.inputNumber, readonly: true, statistics: true },
-            { title: '价税合计', key: 'taxLastMoney', width: '6%', type: FormTypes.inputNumber, statistics: true },
-            { title: '备注', key: 'remark', width: '5%', type: FormTypes.input },
+            { title: '价税合计', key: 'taxLastMoney', width: '7%', type: FormTypes.inputNumber, statistics: true },
+            { title: '备注', key: 'remark', width: '6%', type: FormTypes.input },
             { title: '关联id', key: 'linkId', width: '5%', type: FormTypes.hidden },
           ]
         },
@@ -293,17 +289,23 @@
         validatorRules:{
           operTime:{
             rules: [
-              { required: true, message: '请输入单据日期!' }
+              { required: true, message: '请输入单据日期！' }
             ]
           },
           organId:{
             rules: [
-              { required: true, message: '请选择供应商!' }
+              { required: true, message: '请选择供应商！' }
             ]
           },
           accountId:{
             rules: [
-              { required: true, message: '请选择结算账户!' }
+              { required: true, message: '请选择结算账户！' }
+            ]
+          },
+          changeAmount:{
+            rules: [
+              { required: true, message: '请输入金额，如果为空请填0！' },
+              { pattern: /^(([0-9][0-9]*)|([0]\.\d{0,4}|[0-9][0-9]*\.\d{0,4}))$/, message: '金额格式不正确!' }
             ]
           }
         },
@@ -364,7 +366,8 @@
           // 加载子表数据
           let params = {
             headerId: this.model.id,
-            mpList: getMpListShort(Vue.ls.get('materialPropertyList'))  //扩展属性
+            mpList: getMpListShort(Vue.ls.get('materialPropertyList')),  //扩展属性
+            linkType: 'basic'
           }
           let url = this.readOnly ? this.url.detailList : this.url.detailList;
           this.requestSubTableData(url, params, this.materialTable);
@@ -375,6 +378,7 @@
           this.model.tenantId = ''
           this.copyAddInit(this.prefixNo)
         }
+        this.initSystemConfig()
         this.initSupplier()
         this.initDepot()
         this.initAccount()
@@ -421,7 +425,7 @@
         this.$refs.linkBillList.show('其它', '采购订单', '供应商', "1,3")
         this.$refs.linkBillList.title = "选择采购订单"
       },
-      linkBillListOk(selectBillDetailRows, linkNumber, organId, discount, deposit, remark) {
+      linkBillListOk(selectBillDetailRows, linkNumber, organId, discountMoney, deposit, remark) {
         this.rowCanEdit = false
         this.materialTable.columns[1].type = FormTypes.normal
         this.changeFormTypes(this.materialTable.columns, 'preNumber', 1)
@@ -445,27 +449,29 @@
           }
           this.materialTable.dataSource = listEx
           ///给优惠后金额重新赋值
-          if(allTaxLastMoney) {
-            let discountMoney = (discount*allTaxLastMoney/100).toFixed(2)-0
-            let discountLastMoney = (allTaxLastMoney - discountMoney).toFixed(2)-0
-            let changeAmount = discountLastMoney
-            if(deposit) {
-              this.depositStatus = true
-              changeAmount = (discountLastMoney - deposit).toFixed(2)-0
-            }
-            this.$nextTick(() => {
-              this.form.setFieldsValue({
-                'organId': organId,
-                'linkNumber': linkNumber,
-                'discount': discount,
-                'discountMoney': discountMoney,
-                'discountLastMoney': discountLastMoney,
-                'deposit': deposit,
-                'changeAmount': changeAmount,
-                'remark': remark
-              })
-            })
+          allTaxLastMoney = allTaxLastMoney?allTaxLastMoney:0
+          let discount = 0
+          if(allTaxLastMoney!==0) {
+            discount = (discountMoney / allTaxLastMoney * 100).toFixed(2) - 0
           }
+          let discountLastMoney = (allTaxLastMoney - discountMoney).toFixed(2)-0
+          let changeAmount = discountLastMoney
+          if(deposit) {
+            this.depositStatus = true
+            changeAmount = (discountLastMoney - deposit).toFixed(2)-0
+          }
+          this.$nextTick(() => {
+            this.form.setFieldsValue({
+              'organId': organId,
+              'linkNumber': linkNumber,
+              'discount': discount,
+              'discountMoney': discountMoney,
+              'discountLastMoney': discountLastMoney,
+              'deposit': deposit,
+              'changeAmount': changeAmount,
+              'remark': remark
+            })
+          })
         }
       },
     }

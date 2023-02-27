@@ -15,7 +15,7 @@
               </a-col>
               <a-col :md="6" :sm="24">
                 <a-form-item label="商品信息" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                  <a-input placeholder="请输入条码、名称、规格、型号" v-model="queryParam.materialParam"></a-input>
+                  <a-input placeholder="请输入条码、名称、规格、型号、颜色、扩展信息" v-model="queryParam.materialParam"></a-input>
                 </a-form-item>
               </a-col>
               <a-col :md="6" :sm="24">
@@ -83,6 +83,14 @@
                   </a-form-item>
                 </a-col>
                 <a-col :md="6" :sm="24">
+                  <a-form-item label="有无欠款" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                    <a-select placeholder="选择有无欠款" v-model="queryParam.hasDebt">
+                      <a-select-option value="1">有欠款</a-select-option>
+                      <a-select-option value="0">无欠款</a-select-option>
+                    </a-select>
+                  </a-form-item>
+                </a-col>
+                <a-col :md="6" :sm="24">
                   <a-form-item label="单据状态" :labelCol="labelCol" :wrapperCol="wrapperCol">
                     <a-select placeholder="选择单据状态" v-model="queryParam.status">
                       <a-select-option value="0">未审核</a-select-option>
@@ -105,8 +113,8 @@
           <a-dropdown>
             <a-menu slot="overlay">
               <a-menu-item key="1" v-if="btnEnableList.indexOf(1)>-1" @click="batchDel"><a-icon type="delete"/>删除</a-menu-item>
-              <a-menu-item key="2" v-if="btnEnableList.indexOf(2)>-1" @click="batchSetStatus(1)"><a-icon type="check"/>审核</a-menu-item>
-              <a-menu-item key="3" v-if="btnEnableList.indexOf(7)>-1" @click="batchSetStatus(0)"><a-icon type="stop"/>反审核</a-menu-item>
+              <a-menu-item key="2" v-if="checkFlag && btnEnableList.indexOf(2)>-1" @click="batchSetStatus(1)"><a-icon type="check"/>审核</a-menu-item>
+              <a-menu-item key="3" v-if="checkFlag && btnEnableList.indexOf(7)>-1" @click="batchSetStatus(0)"><a-icon type="stop"/>反审核</a-menu-item>
             </a-menu>
             <a-button>
               批量操作 <a-icon type="down" />
@@ -127,13 +135,14 @@
             rowKey="id"
             :columns="columns"
             :dataSource="dataSource"
+            :components="handleDrag(columns)"
             :pagination="ipagination"
             :scroll="scroll"
             :loading="loading"
             :rowSelection="{selectedRowKeys: selectedRowKeys, onChange: onSelectChange}"
             @change="handleTableChange">
             <span slot="action" slot-scope="text, record">
-              <a @click="myHandleDetail(record, '销售出库')">查看</a>
+              <a @click="myHandleDetail(record, '销售出库', prefixNo)">查看</a>
               <a-divider v-if="btnEnableList.indexOf(1)>-1" type="vertical" />
               <a v-if="btnEnableList.indexOf(1)>-1" @click="myHandleEdit(record)">编辑</a>
               <a-divider v-if="btnEnableList.indexOf(1)>-1" type="vertical" />
@@ -143,16 +152,26 @@
                 <a>删除</a>
               </a-popconfirm>
             </span>
+            <template slot="customRenderDebt" slot-scope="value, record">
+              <a-tooltip title="有收款单">
+                <span style="color:green" v-if="value>0 && record.hasFinancialFlag">{{value}}</span>
+              </a-tooltip>
+              <a-tooltip title="暂未收款">
+                <span style="color:red" v-if="value>0 && !record.hasFinancialFlag">{{value}}</span>
+              </a-tooltip>
+              <span v-if="value===0">{{value}}</span>
+            </template>
             <template slot="customRenderStatus" slot-scope="status">
               <a-tag v-if="status == '0'" color="red">未审核</a-tag>
               <a-tag v-if="status == '1'" color="green">已审核</a-tag>
+              <a-tag v-if="status == '9'" color="orange">审核中</a-tag>
             </template>
           </a-table>
         </div>
         <!-- table区域-end -->
         <!-- 表单区域 -->
         <sale-out-modal ref="modalForm" @ok="modalFormOk"></sale-out-modal>
-        <bill-detail ref="modalDetail"></bill-detail>
+        <bill-detail ref="modalDetail" @ok="modalFormOk"></bill-detail>
       </a-card>
     </a-col>
   </a-row>
@@ -186,9 +205,11 @@
           creator: "",
           linkNumber: "",
           accountId: "",
+          hasDebt: "",
           status: "",
           remark: ""
         },
+        prefixNo: 'XSCK',
         labelCol: {
           span: 5
         },
@@ -198,14 +219,18 @@
         },
         // 表头
         columns: [
+          {
+            title: '操作',
+            dataIndex: 'action',
+            align:"center", width: 180,
+            scopedSlots: { customRender: 'action' },
+          },
           { title: '客户', dataIndex: 'organName',width:120, ellipsis:true},
           { title: '单据编号', dataIndex: 'number',width:160,
             customRender:function (text,record,index) {
-              if(record.linkNumber) {
-                return text + "[订]";
-              } else {
-                return text;
-              }
+              text = record.linkNumber?text+"[订]":text
+              text = record.hasBackFlag?text+"[退]":text
+              return text
             }
           },
           { title: '商品信息', dataIndex: 'materialsList',width:220, ellipsis:true,
@@ -217,6 +242,7 @@
           },
           { title: '单据日期', dataIndex: 'operTimeStr',width:145},
           { title: '操作员', dataIndex: 'userName',width:80, ellipsis:true},
+          { title: '数量', dataIndex: 'materialCount',width:60},
           { title: '金额合计', dataIndex: 'totalPrice',width:80},
           { title: '含税合计', dataIndex: 'totalTaxLastMoney',width:80,
             customRender:function (text,record,index) {
@@ -231,19 +257,10 @@
           },
           { title: '收款', dataIndex: 'changeAmount',width:60},
           { title: '欠款', dataIndex: 'debt',width:60,
-            customRender:function (text,record,index) {
-              let debt = record.discountLastMoney + record.otherMoney - (record.deposit + record.changeAmount)
-              return debt? debt.toFixed(2):''
-            }
+            scopedSlots: { customRender: 'customRenderDebt' }
           },
           { title: '状态', dataIndex: 'status', width: 80, align: "center",
             scopedSlots: { customRender: 'customRenderStatus' }
-          },
-          {
-            title: '操作',
-            dataIndex: 'action',
-            align:"center", width: 180,
-            scopedSlots: { customRender: 'action' },
           }
         ],
         url: {
@@ -257,6 +274,7 @@
     computed: {
     },
     created() {
+      this.initSystemConfig()
       this.initCustomer()
       this.getDepotData()
       this.initUser()

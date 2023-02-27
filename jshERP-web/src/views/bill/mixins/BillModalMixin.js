@@ -1,8 +1,8 @@
 import { FormTypes, getListData } from '@/utils/JEditableTableUtil'
 import {findBySelectSup,findBySelectCus,findBySelectRetail,getMaterialByBarCode,findStockByDepotAndBarCode,getAccount,
-  getPersonByNumType, getBatchNumberList} from '@/api/api'
+  getPersonByNumType, getBatchNumberList, getCurrentSystemConfig} from '@/api/api'
 import { getAction,putAction } from '@/api/manage'
-import { getMpListShort, getNowFormatDateTime } from "@/utils/util"
+import { getMpListShort, getNowFormatDateTime, getCheckFlag } from "@/utils/util"
 import { USER_INFO } from "@/store/mutation-types"
 import Vue from 'vue'
 
@@ -29,6 +29,8 @@ export const BillModalMixin = {
       minWidth: 1100,
       isCanCheck: true,
       isTenant: false,
+      /* 原始审核是否开启 */
+      checkFlag: true,
       validatorRules:{
         price:{
           rules: [
@@ -55,8 +57,8 @@ export const BillModalMixin = {
     let userInfo = Vue.ls.get(USER_INFO)
     this.isTenant = userInfo.id === userInfo.tenantId? true:false
     let realScreenWidth = window.screen.width
-    this.width = realScreenWidth<1500?'1300px':'1550px'
-    this.minWidth = realScreenWidth<1500?1250:1500
+    this.width = realScreenWidth<1500?'1200px':'1550px'
+    this.minWidth = realScreenWidth<1500?1150:1500
   },
   computed: {
     readOnly: function() {
@@ -124,13 +126,17 @@ export const BillModalMixin = {
               if(this.prefixNo === 'LSCK' || this.prefixNo === 'CGTH'  || this.prefixNo === 'XSCK' || this.prefixNo === 'QTCK' || this.prefixNo === 'DBCK') {
                 columns[i].type = FormTypes.popupJsh //显示
               } else {
-                columns[i].type = FormTypes.input //显示
+                if(key === 'snList') {
+                  columns[i].type = FormTypes.popupJsh //显示
+                } else {
+                  columns[i].type = FormTypes.input //显示
+                }
               }
             } else if(key === 'expirationDate') {
               if(this.prefixNo === 'LSTH' || this.prefixNo === 'CGRK' || this.prefixNo === 'XSTH' || this.prefixNo === 'QTRK') {
                 columns[i].type = FormTypes.date //显示
               } else {
-                columns[i].type = FormTypes.normal //显示
+                columns[i].type = FormTypes.input //显示
               }
             } else {
               columns[i].type = FormTypes.normal //显示
@@ -140,6 +146,15 @@ export const BillModalMixin = {
           }
         }
       }
+    },
+    initSystemConfig() {
+      getCurrentSystemConfig().then((res) => {
+        if(res.code === 200 && res.data){
+          let multiBillType = res.data.multiBillType
+          let multiLevelApprovalFlag = res.data.multiLevelApprovalFlag
+          this.checkFlag = getCheckFlag(multiBillType, multiLevelApprovalFlag, this.prefixNo)
+        }
+      })
     },
     initSupplier() {
       let that = this;
@@ -325,9 +340,13 @@ export const BillModalMixin = {
       getAction('/depot/findDepotByCurrentUser').then((res) => {
         if (res.code === 200) {
           let arr = res.data
-          for (let i = 0; i < arr.length; i++) {
-            if(arr[i].isDefault){
-              target.setValues([{rowKey: row.id, values: {depotId: arr[i].id+''}}])
+          if(arr.length===1) {
+            target.setValues([{rowKey: row.id, values: {depotId: arr[0].id+''}}])
+          } else {
+            for (let i = 0; i < arr.length; i++) {
+              if(arr[i].isDefault){
+                target.setValues([{rowKey: row.id, values: {depotId: arr[i].id+''}}])
+              }
             }
           }
         }
@@ -366,8 +385,10 @@ export const BillModalMixin = {
                     mObj.stock = mInfo.stock
                     mArr.push(mObj)
                   }
+                  let allPriceTotal = 0
                   let taxLastMoneyTotal = 0
                   for (let j = 0; j < mArr.length; j++) {
+                    allPriceTotal += mArr[j].allPrice-0
                     taxLastMoneyTotal += mArr[j].taxLastMoney-0
                     //组合和拆分单据给商品类型进行重新赋值
                     if(j===0) {
@@ -377,12 +398,17 @@ export const BillModalMixin = {
                     }
                   }
                   this.materialTable.dataSource = mArr
-                  target.statisticsColumns.taxLastMoney = taxLastMoneyTotal
+                  if(this.prefixNo ==='LSCK' || this.prefixNo ==='LSTH') {
+                    target.statisticsColumns.allPrice = allPriceTotal
+                  } else {
+                    target.statisticsColumns.taxLastMoney = taxLastMoneyTotal
+                  }
                   that.autoChangePrice(target)
                 })
               } else {
                 //单个条码
-                findStockByDepotAndBarCode({ depotId: row.depotId, barCode: row.barCode }).then((res) => {
+                let depotIdSelected = this.prefixNo !== 'CGDD' && this.prefixNo !== 'XSDD'? row.depotId: ''
+                findStockByDepotAndBarCode({ depotId: depotIdSelected, barCode: row.barCode }).then((res) => {
                   if (res && res.code === 200) {
                     let mArr = []
                     let mInfo = mList[0]
@@ -422,7 +448,12 @@ export const BillModalMixin = {
           break;
         case "batchNumber":
           batchNumber = value
-          getBatchNumberList({name:'', depotId: row.depotId, barCode: row.barCode, batchNumber: batchNumber}).then((res) => {
+          let depotItemId = ''
+          let rowId = row.id
+          if(rowId.length<=19) {
+            depotItemId = rowId-0
+          }
+          getBatchNumberList({name:'', depotItemId: depotItemId, depotId: row.depotId, barCode: row.barCode, batchNumber: batchNumber}).then((res) => {
             if (res && res.code === 200) {
               if(res.data && res.data.rows) {
                 let info = res.data.rows[0]
@@ -578,7 +609,7 @@ export const BillModalMixin = {
       });
     },
     //改变优惠率
-    onKeyUpDiscount(e) {
+    onChangeDiscount(e) {
       const value = e.target.value-0
       let otherMoney = this.form.getFieldValue('otherMoney')?this.form.getFieldValue('otherMoney')-0:0
       let deposit = this.form.getFieldValue('deposit')
@@ -596,7 +627,7 @@ export const BillModalMixin = {
       });
     },
     //改变付款优惠
-    onKeyUpDiscountMoney(e) {
+    onChangeDiscountMoney(e) {
       const value = e.target.value-0
       let otherMoney = this.form.getFieldValue('otherMoney')?this.form.getFieldValue('otherMoney')-0:0
       let deposit = this.form.getFieldValue('deposit')
@@ -614,7 +645,7 @@ export const BillModalMixin = {
       });
     },
     //其它费用
-    onKeyUpOtherMoney(e) {
+    onChangeOtherMoney(e) {
       const value = e.target.value-0
       let discountLastMoney = this.form.getFieldValue('discountLastMoney')-0
       let deposit = this.form.getFieldValue('deposit')
@@ -627,7 +658,7 @@ export const BillModalMixin = {
       });
     },
     //改变扣除订金
-    onKeyUpDeposit(e){
+    onChangeDeposit(e){
       const value = e.target.value-0
       let discountLastMoney = this.form.getFieldValue('discountLastMoney')-0
       let otherMoney = this.form.getFieldValue('otherMoney')?this.form.getFieldValue('otherMoney')-0:0
@@ -640,7 +671,7 @@ export const BillModalMixin = {
       });
     },
     //改变本次付款
-    onKeyUpChangeAmount(e) {
+    onChangeChangeAmount(e) {
       const value = e.target.value-0
       let discountLastMoney = this.form.getFieldValue('discountLastMoney')-0
       let otherMoney = this.form.getFieldValue('otherMoney')?this.form.getFieldValue('otherMoney')-0:0

@@ -6,9 +6,9 @@
     :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
+    :style="modalStyle"
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    wrapClassName="ant-modal-cust-warp">
     <template slot="footer">
       <a-button v-if="billPrintFlag" @click="handlePrint">三联打印预览</a-button>
       <!--此处为解决缓存问题-->
@@ -26,7 +26,20 @@
       <a-button v-if="billType === '组装单'" v-print="'#assemblePrint'">普通打印</a-button>
       <a-button v-if="billType === '拆卸单'" v-print="'#disassemblePrint'">普通打印</a-button>
       <a-button v-if="billType === '盘点复盘'" v-print="'#stockCheckReplayPrint'">普通打印</a-button>
+      <!--导出Excel-->
+      <a-button v-if="billType === '零售出库'||billType === '零售退货入库'" @click="retailExportExcel()">导出</a-button>
+      <a-button v-if="billType === '采购订单'||billType === '销售订单'" @click="orderExportExcel()">导出</a-button>
+      <a-button v-if="billType === '采购入库'||billType === '采购退货出库'||billType === '销售出库'||billType === '销售退货入库'"
+                @click="purchaseSaleExportExcel()">导出</a-button>
+      <a-button v-if="billType === '其它入库'||billType === '其它出库'" @click="otherExportExcel()">导出</a-button>
+      <a-button v-if="billType === '调拨出库'" @click="allocationOutExportExcel()">导出</a-button>
+      <a-button v-if="billType === '组装单'||billType === '拆卸单'" @click="assembleExportExcel()">导出</a-button>
+      <a-button v-if="billType === '盘点复盘'" @click="stockCheckReplayExportExcel()">导出</a-button>
+      <!--反审核-->
+      <a-button v-if="checkFlag && isCanBackCheck && model.status==='1'" @click="handleBackCheck()">反审核</a-button>
       <a-button key="back" @click="handleCancel">取消</a-button>
+      <!--发起多级审核-->
+      <a-button v-if="!checkFlag && model.status==='0'" @click="handleWorkflow()" type="primary">提交流程</a-button>
     </template>
     <a-form :form="form">
       <!--零售出库-->
@@ -89,6 +102,13 @@
                 <a-col :lg="24" :md="6" :sm="6">
                   <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="收款账户">
                     {{model.accountName}}
+                  </a-form-item>
+                </a-col>
+                <a-col v-if="model.hasBackFlag" :lg="24" :md="6" :sm="6">
+                  <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="退货单号">
+                    <template v-for="(item, index) in linkNumberList">
+                      <a @click="myHandleDetail(item.number)">{{item.number}}</a><br/>
+                    </template>
                   </a-form-item>
                 </a-col>
               </a-row>
@@ -199,7 +219,7 @@
             </a-col>
             <a-col :span="6">
               <a-form-item v-if="purchaseBySaleFlag" :labelCol="labelCol" :wrapperCol="wrapperCol" label="关联订单">
-                <a @click="myHandleDetail(model.linkNumber)">{{model.linkNumber}}</a>
+                {{model.linkNumber}}
               </a-form-item>
             </a-col>
           </a-row>
@@ -342,6 +362,15 @@
                 {{model.debt}}
               </a-form-item>
             </a-col>
+            <a-col v-if="model.hasBackFlag" :span="6">
+              <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="退货单号">
+                <template v-for="(item, index) in linkNumberList">
+                  <a @click="myHandleDetail(item.number)">{{item.number}}</a><br/>
+                </template>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row class="form-row" :gutter="24">
             <a-col v-if="financialBillNoList.length" :span="6">
               <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="付款单号">
                 <template v-for="(item, index) in financialBillNoList">
@@ -604,7 +633,13 @@
                 {{model.debt}}
               </a-form-item>
             </a-col>
-            <a-col :span="6"></a-col>
+            <a-col v-if="model.hasBackFlag" :span="6">
+              <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="退货单号">
+                <template v-for="(item, index) in linkNumberList">
+                  <a @click="myHandleDetail(item.number)">{{item.number}}</a><br/>
+                </template>
+              </a-form-item>
+            </a-col>
           </a-row>
           <a-row class="form-row" :gutter="24">
             <a-col :span="6">
@@ -968,16 +1003,18 @@
       </template>
     </a-form>
     <bill-print-iframe ref="modalDetail"></bill-print-iframe>
+    <workflow-iframe ref="modalWorkflow"></workflow-iframe>
     <financial-detail ref="financialDetailModal"></financial-detail>
   </j-modal>
 </template>
 
 <script>
   import pick from 'lodash.pick'
-  import { getAction } from '@/api/manage'
+  import { getAction, postAction } from '@/api/manage'
   import { findBillDetailByNumber, findFinancialDetailByNumber, getPlatformConfigByKey, getCurrentSystemConfig} from '@/api/api'
-  import { getMpListShort } from "@/utils/util"
+  import { getMpListShort, getCheckFlag, openDownloadDialog, sheet2blob } from "@/utils/util"
   import BillPrintIframe from './BillPrintIframe'
+  import WorkflowIframe from '@/components/tools/WorkflowIframe'
   import FinancialDetail from '../../financial/dialog/FinancialDetail'
   import JUpload from '@/components/jeecg/JUpload'
   import Vue from 'vue'
@@ -985,6 +1022,7 @@
     name: 'BillDetail',
     components: {
       BillPrintIframe,
+      WorkflowIframe,
       FinancialDetail,
       JUpload
     },
@@ -993,12 +1031,17 @@
         title: "详情",
         width: '1600px',
         visible: false,
+        modalStyle: '',
         model: {},
+        isCanBackCheck: true,
         billType: '',
         billPrintFlag: false,
         fileList: [],
         purchaseBySaleFlag: false,
+        linkNumberList: [],
         financialBillNoList: [],
+        /* 原始反审核是否开启 */
+        checkFlag: true,
         tableWidth: {
           'width': '1500px'
         },
@@ -1017,7 +1060,8 @@
         loading: false,
         dataSource: [],
         url: {
-          detailList: '/depotItem/getDetailList'
+          detailList: '/depotItem/getDetailList',
+          batchSetStatusUrl: "/depotHead/batchSetStatus"
         },
         //表头
         columns:[],
@@ -1100,6 +1144,7 @@
           { title: '税率(%)', dataIndex: 'taxRate'},
           { title: '税额', dataIndex: 'taxMoney'},
           { title: '价税合计', dataIndex: 'taxLastMoney'},
+          { title: '重量', dataIndex: 'weight'},
           { title: '备注', dataIndex: 'remark'}
         ],
         purchaseBackColumns: [
@@ -1122,6 +1167,7 @@
           { title: '税率(%)', dataIndex: 'taxRate'},
           { title: '税额', dataIndex: 'taxMoney'},
           { title: '价税合计', dataIndex: 'taxLastMoney'},
+          { title: '重量', dataIndex: 'weight'},
           { title: '备注', dataIndex: 'remark'}
         ],
         saleOrderColumns: [
@@ -1163,6 +1209,7 @@
           { title: '税率(%)', dataIndex: 'taxRate'},
           { title: '税额', dataIndex: 'taxMoney'},
           { title: '价税合计', dataIndex: 'taxLastMoney'},
+          { title: '重量', dataIndex: 'weight'},
           { title: '备注', dataIndex: 'remark'}
         ],
         saleBackColumns: [
@@ -1185,6 +1232,7 @@
           { title: '税率(%)', dataIndex: 'taxRate'},
           { title: '税额', dataIndex: 'taxMoney'},
           { title: '价税合计', dataIndex: 'taxLastMoney'},
+          { title: '重量', dataIndex: 'weight'},
           { title: '备注', dataIndex: 'remark'}
         ],
         otherInColumns: [
@@ -1236,9 +1284,6 @@
           { title: '库存', dataIndex: 'stock'},
           { title: '调入仓库', dataIndex: 'anotherDepotName'},
           { title: '单位', dataIndex: 'unit'},
-          { title: '序列号', dataIndex: 'snList'},
-          { title: '批号', dataIndex: 'batchNumber'},
-          { title: '有效期', dataIndex: 'expirationDate'},
           { title: '多属性', dataIndex: 'sku'},
           { title: '数量', dataIndex: 'operNumber'},
           { title: '单价', dataIndex: 'unitPrice'},
@@ -1298,12 +1343,12 @@
     },
     created () {
       let realScreenWidth = window.screen.width
-      this.width = realScreenWidth<1500?'1300px':'1550px'
+      this.width = realScreenWidth<1500?'1200px':'1550px'
       this.tableWidth = {
-        'width': realScreenWidth<1500?'1250px':'1500px'
+        'width': realScreenWidth<1500?'1150px':'1500px'
       }
       this.tableWidthRetail = {
-        'width': realScreenWidth<1500?'900px':'1100px'
+        'width': realScreenWidth<1500?'800px':'1100px'
       }
     },
     methods: {
@@ -1352,6 +1397,9 @@
           if(ds[i].sku) {
             needAddkeywords.push('sku')
           }
+          if(ds[i].weight) {
+            needAddkeywords.push('weight')
+          }
         }
         if(record.status === '3') {
           //部分采购|部分销售的时候显示全部列
@@ -1374,7 +1422,7 @@
           let currentCol = []
           for(let i=0; i<this.defColumns.length; i++){
             //移除列
-            let needRemoveKeywords = ['finishNumber','snList','batchNumber','expirationDate','sku']
+            let needRemoveKeywords = ['finishNumber','snList','batchNumber','expirationDate','sku','weight']
             if(needRemoveKeywords.indexOf(this.defColumns[i].dataIndex)===-1) {
               let info = {}
               info.title = this.defColumns[i].title
@@ -1397,7 +1445,8 @@
       initPlatform() {
         getPlatformConfigByKey({"platformKey": "bill_print_flag"}).then((res)=> {
           if (res && res.code === 200) {
-            if(this.billType === '采购订单'||this.billType === '采购入库'||this.billType === '采购退货出库'||
+            if(this.billType === '零售出库'||this.billType === '零售退货入库'||
+              this.billType === '采购订单'||this.billType === '采购入库'||this.billType === '采购退货出库'||
               this.billType === '销售订单'||this.billType === '销售出库'||this.billType === '销售退货入库') {
               this.billPrintFlag = res.data.platformValue==='1'?true:false
             }
@@ -1408,6 +1457,16 @@
         getCurrentSystemConfig().then((res) => {
           if(res.code === 200 && res.data){
             this.purchaseBySaleFlag = res.data.purchaseBySaleFlag==='1'?true:false
+            let multiBillType = res.data.multiBillType
+            let multiLevelApprovalFlag = res.data.multiLevelApprovalFlag
+            this.checkFlag = getCheckFlag(multiBillType, multiLevelApprovalFlag, this.prefixNo)
+          }
+        })
+      },
+      getBillListByLinkNumber(number) {
+        getAction('/depotHead/getBillListByLinkNumber', {number: number}).then(res => {
+          if(res && res.code === 200){
+            this.linkNumberList = res.data
           }
         })
       },
@@ -1418,37 +1477,47 @@
           }
         })
       },
-      show(record, type) {
-        this.billType = type
-        //附件下载
-        this.fileList = record.fileName
-        this.visible = true;
-        this.model = Object.assign({}, record);
-        if(this.model.backAmount) {
-          this.model.getAmount = (this.model.changeAmount + this.model.backAmount).toFixed(2)
-        } else {
-          this.model.getAmount = this.model.changeAmount
-        }
-        this.model.debt = (this.model.discountLastMoney + this.model.otherMoney - (this.model.deposit + this.model.changeAmount)).toFixed(2)
-        this.$nextTick(() => {
-          this.form.setFieldsValue(pick(this.model,'id'))
-        });
-        let showType = 'basic'
-        if(record.status === '3') {
-          showType = 'basic'
-        } else if(record.purchaseStatus === '3') {
-          showType = 'purchase'
-        }
-        let params = {
-          headerId: this.model.id,
-          mpList: getMpListShort(Vue.ls.get('materialPropertyList')),  //扩展属性
-          linkType: showType
-        }
-        let url = this.readOnly ? this.url.detailList : this.url.detailList;
-        this.requestSubTableData(record, type, url, params);
-        this.initPlatform()
-        this.getSystemConfig()
-        this.getFinancialBillNoByBillId(this.model.id)
+      show(record, type, prefixNo) {
+        //查询单条单据信息
+        findBillDetailByNumber({ number: record.number }).then((res) => {
+          if (res && res.code === 200) {
+            let item = res.data
+            this.billType = type
+            this.prefixNo = prefixNo
+            //附件下载
+            this.fileList = item.fileName
+            this.visible = true
+            this.modalStyle = 'top:20px;height: 95%;'
+            this.model = Object.assign({}, item)
+            if (this.model.backAmount) {
+              this.model.getAmount = (this.model.changeAmount + this.model.backAmount).toFixed(2)
+            } else {
+              this.model.getAmount = this.model.changeAmount
+            }
+            this.model.debt = (this.model.discountLastMoney + this.model.otherMoney - (this.model.deposit + this.model.changeAmount)).toFixed(2)
+            this.$nextTick(() => {
+              this.form.setFieldsValue(pick(this.model, 'id'))
+            });
+            let showType = 'basic'
+            if (item.status === '3') {
+              showType = 'basic'
+            } else if (item.purchaseStatus === '3') {
+              showType = 'purchase'
+            }
+            let params = {
+              headerId: this.model.id,
+              mpList: getMpListShort(Vue.ls.get('materialPropertyList')),  //扩展属性
+              linkType: showType,
+              isReadOnly: '1'
+            }
+            let url = this.readOnly ? this.url.detailList : this.url.detailList;
+            this.requestSubTableData(item, type, url, params);
+            this.initPlatform()
+            this.getSystemConfig()
+            this.getBillListByLinkNumber(this.model.number)
+            this.getFinancialBillNoByBillId(this.model.id)
+          }
+        })
       },
       requestSubTableData(record, type, url, params, success) {
         this.loading = true
@@ -1462,12 +1531,34 @@
           this.loading = false
         })
       },
+      handleBackCheck() {
+        let that = this
+        this.$confirm({
+          title: "确认操作",
+          content: "是否对该单据进行反审核?",
+          onOk: function () {
+            that.loading = true
+            postAction(that.url.batchSetStatusUrl, {status: '0', ids: that.model.id}).then((res) => {
+              if(res.code === 200){
+                that.$emit('ok')
+                that.loading = false
+                that.close()
+              } else {
+                that.$message.warning(res.data.message)
+                that.loading = false
+              }
+            }).finally(() => {
+            })
+          }
+        })
+      },
       handleCancel() {
         this.close()
       },
       close() {
-        this.$emit('close');
-        this.visible = false;
+        this.$emit('close')
+        this.visible = false
+        this.modalStyle = ''
       },
       myHandleDetail(billNumber) {
         findBillDetailByNumber({ number: billNumber }).then((res) => {
@@ -1495,10 +1586,139 @@
           if (res && res.code === 200) {
             let billPrintUrl = res.data.platformValue + '?no=' + this.model.number
             let billPrintHeight = this.dataSource.length*50 + 600
-            this.$refs.modalDetail.show(this.model, billPrintUrl, billPrintHeight);
-            this.$refs.modalDetail.title = this.billType + "-三联打印预览";
+            this.$refs.modalDetail.show(this.model, billPrintUrl, billPrintHeight)
+            this.$refs.modalDetail.title = this.billType + "-三联打印预览"
           }
         })
+      },
+      //发起流程
+      handleWorkflow() {
+        getPlatformConfigByKey({"platformKey": "send_workflow_url"}).then((res)=> {
+          if (res && res.code === 200) {
+            let sendWorkflowUrl = res.data.platformValue + '?no=' + this.model.number + '&type=1'
+            this.$refs.modalWorkflow.show(this.model, sendWorkflowUrl, 320)
+            this.$refs.modalWorkflow.title = "发起流程"
+          }
+        })
+      },
+      //零售出库|零售退货入库
+      retailExportExcel() {
+        let aoa = []
+        aoa = [['会员卡号：', this.model.organName, '', '单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number],[]]
+        let title = ['仓库名称', '条码', '名称', '规格', '型号', '颜色', '扩展信息', '库存', '单位', '序列号', '批号', '有效期', '多属性', '数量', '单价', '金额', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.depotName, ds.barCode, ds.name, ds.standard, ds.model, ds.color, ds.materialOther, ds.stock, ds.unit,
+            ds.snList, ds.batchNumber, ds.expirationDate, ds.sku, ds.operNumber, ds.unitPrice, ds.allPrice, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
+      },
+      //采购订单|销售订单
+      orderExportExcel() {
+        let aoa = []
+        let finishType = ''
+        let organType = ''
+        if(this.billType === '采购订单') {
+          finishType = '已入库'
+          organType = '供应商：'
+        } else if(this.billType === '销售订单') {
+          finishType = '已出库'
+          organType = '客户：'
+        }
+        aoa = [[organType, this.model.organName, '', '单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number],[]]
+        let title = ['条码', '名称', '规格', '型号', '颜色', '扩展信息', '库存', '单位', '多属性', '数量', finishType, '单价', '金额', '税率(%)', '税额', '价税合计', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.barCode, ds.name, ds.standard, ds.model, ds.color, ds.materialOther, ds.stock, ds.unit, ds.sku,
+            ds.operNumber, ds.finishNumber, ds.unitPrice, ds.allPrice, ds.taxRate, ds.taxMoney, ds.taxLastMoney, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
+      },
+      //采购入库|采购退货出库|销售出库|销售退货入库
+      purchaseSaleExportExcel() {
+        let aoa = []
+        let organType = ''
+        if(this.billType === '采购入库' || this.billType === '采购退货出库') {
+          organType = '供应商：'
+        } else if(this.billType === '销售出库' || this.billType === '销售退货入库') {
+          organType = '客户：'
+        }
+        aoa = [[organType, this.model.organName, '', '单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number, '', '关联单号：', this.model.linkNumber],[]]
+        let title = ['仓库名称', '条码', '名称', '规格', '型号', '颜色', '扩展信息', '库存', '单位', '序列号', '批号', '有效期', '多属性', '数量', '单价', '金额', '税率(%)', '税额', '价税合计', '重量', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.depotName, ds.barCode, ds.name, ds.standard, ds.model, ds.color, ds.materialOther, ds.stock, ds.unit,
+            ds.snList, ds.batchNumber, ds.expirationDate, ds.sku, ds.operNumber, ds.unitPrice, ds.allPrice, ds.taxRate, ds.taxMoney, ds.taxLastMoney, ds.weight, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
+      },
+      //其它入库|其它出库
+      otherExportExcel() {
+        let aoa = []
+        let organType = ''
+        if(this.billType === '其它入库') {
+          organType = '供应商：'
+        } else if(this.billType === '其它出库') {
+          organType = '客户：'
+        }
+        aoa = [[organType, this.model.organName, '', '单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number],[]]
+        let title = ['仓库名称', '条码', '名称', '规格', '型号', '颜色', '扩展信息', '库存', '单位', '序列号', '批号', '有效期', '多属性', '数量', '单价', '金额', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.depotName, ds.barCode, ds.name, ds.standard, ds.model, ds.color, ds.materialOther, ds.stock, ds.unit,
+            ds.snList, ds.batchNumber, ds.expirationDate, ds.sku, ds.operNumber, ds.unitPrice, ds.allPrice, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
+      },
+      //调拨出库
+      allocationOutExportExcel() {
+        let aoa = []
+        aoa = [['单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number],[]]
+        let title = ['仓库名称', '条码', '名称', '规格', '型号', '颜色', '扩展信息', '库存', '调入仓库', '单位', '多属性', '数量', '单价', '金额', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.depotName, ds.barCode, ds.name, ds.standard, ds.model, ds.color, ds.materialOther, ds.stock, ds.anotherDepotName, ds.unit,
+            ds.sku, ds.operNumber, ds.unitPrice, ds.allPrice, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
+      },
+      //组装单|拆卸单
+      assembleExportExcel() {
+        let aoa = []
+        aoa = [['单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number],[]]
+        let title = ['商品类型', '仓库名称', '条码', '名称', '规格', '型号', '颜色', '扩展信息', '库存', '单位', '多属性', '数量', '单价', '金额', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.mType, ds.depotName, ds.barCode, ds.name, ds.standard, ds.model, ds.color, ds.materialOther, ds.stock, ds.unit,
+            ds.sku, ds.operNumber, ds.unitPrice, ds.allPrice, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
+      },
+      //盘点复盘
+      stockCheckReplayExportExcel() {
+        let aoa = []
+        aoa = [['单据日期：', this.model.operTimeStr, '', '单据编号：', this.model.number, '', '关联单据：', this.model.linkNumber],[]]
+        let title = ['仓库名称', '条码', '名称', '规格', '型号', '扩展信息', '库存', '单位', '多属性', '数量', '单价', '金额', '备注']
+        aoa.push(title)
+        for (let i = 0; i < this.dataSource.length; i++) {
+          let ds = this.dataSource[i]
+          let item = [ds.depotName, ds.barCode, ds.name, ds.standard, ds.model, ds.materialOther, ds.stock, ds.unit,
+            ds.sku, ds.operNumber, ds.unitPrice, ds.allPrice, ds.remark]
+          aoa.push(item)
+        }
+        openDownloadDialog(sheet2blob(aoa), this.billType + '_' + this.model.number)
       }
     }
   }

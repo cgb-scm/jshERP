@@ -27,6 +27,8 @@
           <a-dropdown>
             <a-menu slot="overlay">
               <a-menu-item key="1" v-if="btnEnableList.indexOf(1)>-1" @click="batchDel"><a-icon type="delete"/>删除</a-menu-item>
+              <a-menu-item key="2" v-if="btnEnableList.indexOf(1)>-1" @click="batchSetStatus(true)"><a-icon type="check-square"/>启用</a-menu-item>
+              <a-menu-item key="3" v-if="btnEnableList.indexOf(1)>-1" @click="batchSetStatus(false)"><a-icon type="close-square"/>禁用</a-menu-item>
             </a-menu>
             <a-button>
               批量操作 <a-icon type="down" />
@@ -54,6 +56,11 @@
                 <a>删除</a>
               </a-popconfirm>
             </span>
+            <!-- 状态渲染模板 -->
+            <template slot="customRenderFlag" slot-scope="enabled">
+              <a-tag v-if="enabled" color="green">启用</a-tag>
+              <a-tag v-if="!enabled" color="orange">禁用</a-tag>
+            </template>
           </a-table>
         </div>
         <!-- table区域-end -->
@@ -98,16 +105,23 @@
               return parseInt(index)+1;
             }
           },
-          { title: '计量单位', align:"center", dataIndex: 'name', width:200 },
-          { title: '基本单位', align:"center", dataIndex: 'basicUnit', width:80 },
-          { title: '副单位', align:"center", dataIndex: 'otherUnit', width:100,
+          {
+            title: '操作',
+            dataIndex: 'action',
+            width:100,
+            align:"center",
+            scopedSlots: { customRender: 'action' },
+          },
+          { title: '计量单位', align:"left", dataIndex: 'name', width:200 },
+          { title: '基本单位', align:"left", dataIndex: 'basicUnit', width:80 },
+          { title: '副单位', align:"left", dataIndex: 'otherUnit', width:100,
             customRender:function (t,r,index) {
               if (r) {
                 return r.otherUnit + '=' + r.ratio + r.basicUnit;
               }
             }
           },
-          { title: '副单位2', align:"center", dataIndex: 'otherUnitTwo', width:100,
+          { title: '副单位2', align:"left", dataIndex: 'otherUnitTwo', width:100,
             customRender:function (t,r,index) {
               if (r) {
                 if(r.otherUnitTwo) {
@@ -116,7 +130,7 @@
               }
             }
           },
-          { title: '副单位3', align:"center", dataIndex: 'otherUnitThree', width:100,
+          { title: '副单位3', align:"left", dataIndex: 'otherUnitThree', width:100,
             customRender:function (t,r,index) {
               if (r) {
                 if(r.otherUnitThree) {
@@ -125,18 +139,15 @@
               }
             }
           },
-          {
-            title: '操作',
-            dataIndex: 'action',
-            width:120,
-            align:"center",
-            scopedSlots: { customRender: 'action' },
+          { title: '状态',dataIndex: 'enabled',width:60,align:"center",
+            scopedSlots: { customRender: 'customRenderFlag' }
           }
         ],
         url: {
           list: "/unit/list",
           delete: "/unit/delete",
-          deleteBatch: "/unit/deleteBatch"
+          deleteBatch: "/unit/deleteBatch",
+          batchSetStatusUrl: "/unit/batchSetStatus"
         }
       }
     },

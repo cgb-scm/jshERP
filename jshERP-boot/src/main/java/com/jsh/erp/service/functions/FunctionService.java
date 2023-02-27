@@ -3,6 +3,7 @@ package com.jsh.erp.service.functions;
 import com.alibaba.fastjson.JSONObject;
 import com.jsh.erp.constants.BusinessConstants;
 import com.jsh.erp.datasource.entities.Function;
+import com.jsh.erp.datasource.entities.FunctionEx;
 import com.jsh.erp.datasource.entities.FunctionExample;
 import com.jsh.erp.datasource.entities.User;
 import com.jsh.erp.datasource.mappers.FunctionMapper;
@@ -73,10 +74,12 @@ public class FunctionService {
         return list;
     }
 
-    public List<Function> select(String name, String type, int offset, int rows)throws Exception {
-        List<Function> list=null;
+    public List<FunctionEx> select(String name, String type, int offset, int rows)throws Exception {
+        List<FunctionEx> list=null;
         try{
-            list= functionMapperEx.selectByConditionFunction(name, type, offset, rows);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                list = functionMapperEx.selectByConditionFunction(name, type, offset, rows);
+            }
         }catch(Exception e){
             JshException.readFail(logger, e);
         }
@@ -86,7 +89,9 @@ public class FunctionService {
     public Long countFunction(String name, String type)throws Exception {
         Long result=null;
         try{
-            result= functionMapperEx.countsByFunction(name, type);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                result = functionMapperEx.countsByFunction(name, type);
+            }
         }catch(Exception e){
             JshException.readFail(logger, e);
         }
@@ -98,9 +103,13 @@ public class FunctionService {
         Function functions = JSONObject.parseObject(obj.toJSONString(), Function.class);
         int result=0;
         try{
-            result=functionsMapper.insertSelective(functions);
-            logService.insertLog("功能",
-                    new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_ADD).append(functions.getName()).toString(),request);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                functions.setState(false);
+                functions.setType("电脑版");
+                result = functionsMapper.insertSelective(functions);
+                logService.insertLog("功能",
+                        new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_ADD).append(functions.getName()).toString(), request);
+            }
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -112,9 +121,11 @@ public class FunctionService {
         Function functions = JSONObject.parseObject(obj.toJSONString(), Function.class);
         int result=0;
         try{
-            result=functionsMapper.updateByPrimaryKeySelective(functions);
-            logService.insertLog("功能",
-                    new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(functions.getName()).toString(), request);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                result = functionsMapper.updateByPrimaryKeySelective(functions);
+                logService.insertLog("功能",
+                        new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(functions.getName()).toString(), request);
+            }
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -139,13 +150,15 @@ public class FunctionService {
         for(Function functions: list){
             sb.append("[").append(functions.getName()).append("]");
         }
-        logService.insertLog("功能", sb.toString(),
-                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
         User userInfo=userService.getCurrentUser();
         String [] idArray=ids.split(",");
         int result=0;
         try{
-            result = functionMapperEx.batchDeleteFunctionByIds(new Date(),userInfo==null?null:userInfo.getId(),idArray);
+            if(BusinessConstants.DEFAULT_MANAGER.equals(userService.getCurrentUser().getLoginName())) {
+                result = functionMapperEx.batchDeleteFunctionByIds(new Date(), userInfo == null ? null : userInfo.getId(), idArray);
+                logService.insertLog("功能", sb.toString(),
+                        ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+            }
         }catch(Exception e){
             JshException.writeFail(logger, e);
         }
@@ -164,29 +177,21 @@ public class FunctionService {
         return list==null?0:list.size();
     }
 
-    public List<Function> getRoleFunction(String pNumber)throws Exception {
+    public int checkIsNumberExist(Long id, String number)throws Exception {
         FunctionExample example = new FunctionExample();
-        example.createCriteria().andEnabledEqualTo(true).andParentNumberEqualTo(pNumber)
-                .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("Sort");
+        example.createCriteria().andIdNotEqualTo(id).andNumberEqualTo(number).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
         List<Function> list=null;
         try{
             list = functionsMapper.selectByExample(example);
         }catch(Exception e){
             JshException.readFail(logger, e);
         }
-        return list;
+        return list==null?0:list.size();
     }
 
-    /**
-     * 获取功能列表的叶子节点
-     * @return
-     * @throws Exception
-     */
-    public List<Function> getRoleFunctionLeaf()throws Exception {
+    public List<Function> getRoleFunction(String pNumber)throws Exception {
         FunctionExample example = new FunctionExample();
-        example.createCriteria().andEnabledEqualTo(true).andParentNumberNotEqualTo("0")
-                .andComponentNotEqualTo("/layouts/IframePageView")
+        example.createCriteria().andEnabledEqualTo(true).andParentNumberEqualTo(pNumber)
                 .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
         example.setOrderByClause("Sort");
         List<Function> list=null;

@@ -4,16 +4,14 @@
     :width="width"
     :visible="visible"
     :confirmLoading="confirmLoading"
-    :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
     switchFullscreen
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    style="top:20px;height: 95%;">
     <template slot="footer">
       <a-button @click="handleCancel">取消</a-button>
-      <a-button v-if="isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
+      <a-button v-if="checkFlag && isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
       <a-button type="primary" @click="handleOk">保存</a-button>
     </template>
     <a-spin :spinning="confirmLoading">
@@ -61,6 +59,7 @@
           :loading="accountTable.loading"
           :columns="accountTable.columns"
           :dataSource="accountTable.dataSource"
+          :minWidth="minWidth"
           :maxHeight="300"
           :rowNumber="false"
           :rowSelection="true"
@@ -129,6 +128,7 @@
         // 新增时子表默认添加几行空数据
         addDefaultRowNum: 1,
         visible: false,
+        prefixNo: 'SYF',
         model: {},
         fileList:[],
         labelCol: {
@@ -186,7 +186,7 @@
       editAfter() {
         this.billStatus = '0'
         if (this.action === 'add') {
-          this.addInit("SYF")
+          this.addInit(this.prefixNo)
           this.fileList = []
         } else {
           this.model.billTime = this.model.billTimeStr
@@ -202,6 +202,7 @@
           let url = this.readOnly ? this.url.detailList : this.url.detailList;
           this.requestSubTableData(url, params, this.accountTable);
         }
+        this.initSystemConfig()
         this.initRetail()
         this.initPerson()
         this.initDetailAccount()

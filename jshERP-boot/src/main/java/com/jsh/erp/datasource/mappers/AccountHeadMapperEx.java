@@ -3,6 +3,7 @@ package com.jsh.erp.datasource.mappers;
 import com.jsh.erp.datasource.entities.AccountHead;
 import com.jsh.erp.datasource.entities.AccountHeadExample;
 import com.jsh.erp.datasource.entities.AccountHeadVo4ListEx;
+import com.jsh.erp.datasource.entities.AccountItem;
 import org.apache.ibatis.annotations.Param;
 
 import java.math.BigDecimal;
@@ -23,6 +24,7 @@ public interface AccountHeadMapperEx {
             @Param("accountId") Long accountId,
             @Param("status") String status,
             @Param("remark") String remark,
+            @Param("number") String number,
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
 
@@ -37,7 +39,8 @@ public interface AccountHeadMapperEx {
             @Param("handsPersonId") Long handsPersonId,
             @Param("accountId") Long accountId,
             @Param("status") String status,
-            @Param("remark") String remark);
+            @Param("remark") String remark,
+            @Param("number") String number);
 
     BigDecimal findAllMoney(
             @Param("supplierId") Integer supplierId,
@@ -55,6 +58,9 @@ public interface AccountHeadMapperEx {
     List<AccountHead> getAccountHeadListByOrganIds(@Param("organIds") String[] organIds);
 
     List<AccountHead> getAccountHeadListByHandsPersonIds(@Param("handsPersonIds") String[] handsPersonIds);
+
+    List<AccountItem> getFinancialBillNoByBillIdList(
+            @Param("idList") List<Long> idList);
 
     List<AccountHead> getFinancialBillNoByBillId(
             @Param("billId") Long billId);

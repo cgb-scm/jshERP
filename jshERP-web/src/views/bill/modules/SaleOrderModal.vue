@@ -4,19 +4,17 @@
     :width="width"
     :visible="visible"
     :confirmLoading="confirmLoading"
-    :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
     v-bind:prefixNo="prefixNo"
     switchHelp
     switchFullscreen
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
     :id="prefixNo"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    style="top:20px;height: 95%;">
     <template slot="footer">
       <a-button @click="handleCancel">取消</a-button>
-      <a-button v-if="isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
+      <a-button v-if="checkFlag && isCanCheck" @click="handleOkAndCheck">保存并审核</a-button>
       <a-button type="primary" @click="handleOk">保存</a-button>
     </template>
     <a-spin :spinning="confirmLoading">
@@ -73,14 +71,14 @@
           @added="onAdded"
           @deleted="onDeleted">
           <template #buttonAfter>
-            <a-row :gutter="24" style="float:left;" data-step="4" data-title="扫码录入" data-intro="此功能支持扫码枪扫描商品条码进行录入">
+            <a-row :gutter="24" style="float:left;padding-bottom: 5px;" data-step="4" data-title="扫码录入" data-intro="此功能支持扫码枪扫描商品条码进行录入">
               <a-col v-if="scanStatus" :md="6" :sm="24">
                 <a-button @click="scanEnter">扫码录入</a-button>
               </a-col>
-              <a-col v-if="!scanStatus" :md="16" :sm="24" style="padding: 0 6px 0 12px">
+              <a-col v-if="!scanStatus" :md="16" :sm="24" style="padding: 0 8px 0 12px">
                 <a-input placeholder="请扫码商品条码并回车" v-model="scanBarCode" @pressEnter="scanPressEnter" ref="scanBarCode"/>
               </a-col>
-              <a-col v-if="!scanStatus" :md="6" :sm="24" style="padding: 0px">
+              <a-col v-if="!scanStatus" :md="6" :sm="24" style="padding: 0px 18px 0 0">
                 <a-button @click="stopScan">收起扫码</a-button>
               </a-col>
             </a-row>
@@ -102,13 +100,13 @@
           <a-col :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="优惠率" data-step="5" data-title="优惠率"
                          data-intro="针对单据明细中商品总金额进行优惠的比例">
-              <a-input style="width:185px;" placeholder="请输入优惠率" v-decorator.trim="[ 'discount' ]" suffix="%" @keyup="onKeyUpDiscount"/>
+              <a-input style="width:185px;" placeholder="请输入优惠率" v-decorator.trim="[ 'discount' ]" suffix="%" @change="onChangeDiscount"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
             <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="收款优惠" data-step="6" data-title="收款优惠"
                          data-intro="针对单据明细中商品总金额进行优惠的金额">
-              <a-input placeholder="请输入付款优惠" v-decorator.trim="[ 'discountMoney' ]" @keyup="onKeyUpDiscountMoney"/>
+              <a-input placeholder="请输入付款优惠" v-decorator.trim="[ 'discountMoney' ]" @change="onChangeDiscountMoney"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
@@ -121,7 +119,7 @@
         </a-row>
         <a-row class="form-row" :gutter="24">
           <a-col :lg="6" :md="12" :sm="24">
-            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="结算账户" data-step="9" data-title="结算账户"
+            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="结算账户" data-step="8" data-title="结算账户"
                          data-intro="如果在下拉框中选择多账户，则可以通过多个结算账户进行结算">
               <a-select style="width:185px;" placeholder="选择结算账户" v-decorator="[ 'accountId', validatorRules.accountId ]"
                         :dropdownMatchSelectWidth="false" allowClear @select="selectAccount">
@@ -141,8 +139,9 @@
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
-            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="收取订金">
-              <a-input placeholder="请输入收取订金" v-decorator.trim="[ 'changeAmount', validatorRules.price ]" @keyup="onKeyUpChangeAmount"/>
+            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="收取订金" data-step="9" data-title="收取订金"
+                         data-intro="填写订金之后，在销售出库单会自动计算扣除订金">
+              <a-input placeholder="请输入收取订金" v-decorator.trim="[ 'changeAmount', validatorRules.price ]" @change="onChangeChangeAmount"/>
             </a-form-item>
           </a-col>
           <a-col :lg="6" :md="12" :sm="24">
@@ -152,7 +151,7 @@
         </a-row>
         <a-row class="form-row" :gutter="24">
           <a-col :lg="6" :md="12" :sm="24">
-            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="附件" data-step="8" data-title="附件" data-intro="可以上传与单据相关的图片、文档，支持多个文件">
+            <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="附件" data-step="10" data-title="附件" data-intro="可以上传与单据相关的图片、文档，支持多个文件">
               <j-upload v-model="fileList" bizPath="bill"></j-upload>
             </a-form-item>
           </a-col>
@@ -221,13 +220,12 @@
           loading: false,
           dataSource: [],
           columns: [
-            { title: '仓库名称', key: 'depotId', width: '7%', type: FormTypes.hidden },
-            { title: '条码', key: 'barCode', width: '8%', type: FormTypes.popupJsh, kind: 'material', multi: true,
+            { title: '条码', key: 'barCode', width: '10%', type: FormTypes.popupJsh, kind: 'material', multi: true,
               validateRules: [{ required: true, message: '${title}不能为空' }]
             },
-            { title: '名称', key: 'name', width: '6%', type: FormTypes.normal },
-            { title: '规格', key: 'standard', width: '5%', type: FormTypes.normal },
-            { title: '型号', key: 'model', width: '5%', type: FormTypes.normal },
+            { title: '名称', key: 'name', width: '8%', type: FormTypes.normal },
+            { title: '规格', key: 'standard', width: '7%', type: FormTypes.normal },
+            { title: '型号', key: 'model', width: '7%', type: FormTypes.normal },
             { title: '颜色', key: 'color', width: '5%', type: FormTypes.normal },
             { title: '扩展信息', key: 'materialOther', width: '5%', type: FormTypes.normal },
             { title: '库存', key: 'stock', width: '5%', type: FormTypes.normal },
@@ -240,8 +238,8 @@
             { title: '金额', key: 'allPrice', width: '5%', type: FormTypes.inputNumber, statistics: true },
             { title: '税率', key: 'taxRate', width: '4%', type: FormTypes.inputNumber,placeholder: '%'},
             { title: '税额', key: 'taxMoney', width: '5%', type: FormTypes.inputNumber, readonly: true, statistics: true },
-            { title: '价税合计', key: 'taxLastMoney', width: '6%', type: FormTypes.inputNumber, statistics: true },
-            { title: '备注', key: 'remark', width: '5%', type: FormTypes.input }
+            { title: '价税合计', key: 'taxLastMoney', width: '7%', type: FormTypes.inputNumber, statistics: true },
+            { title: '备注', key: 'remark', width: '6%', type: FormTypes.input }
           ]
         },
         confirmLoading: false,
@@ -280,7 +278,7 @@
           })
         } else {
           this.model.operTime = this.model.operTimeStr
-          if(this.model.accountId == null) {
+          if(this.model.accountId == null && this.model.accountIdList) {
             this.model.accountId = 0
             this.manyAccountBtnStatus = true
             this.accountIdList = this.model.accountIdList
@@ -297,7 +295,8 @@
           // 加载子表数据
           let params = {
             headerId: this.model.id,
-            mpList: getMpListShort(Vue.ls.get('materialPropertyList'))  //扩展属性
+            mpList: getMpListShort(Vue.ls.get('materialPropertyList')),  //扩展属性
+            linkType: 'basic'
           }
           let url = this.readOnly ? this.url.detailList : this.url.detailList;
           this.requestSubTableData(url, params, this.materialTable);
@@ -308,6 +307,7 @@
           this.model.tenantId = ''
           this.copyAddInit(this.prefixNo)
         }
+        this.initSystemConfig()
         this.initCustomer()
         this.initSalesman()
         this.initAccount()

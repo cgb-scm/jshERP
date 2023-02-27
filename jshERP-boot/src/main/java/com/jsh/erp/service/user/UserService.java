@@ -1,6 +1,7 @@
 package com.jsh.erp.service.user;
 
 import com.jsh.erp.datasource.entities.*;
+import com.jsh.erp.exception.BusinessParamCheckingException;
 import com.jsh.erp.service.functions.FunctionService;
 import com.jsh.erp.service.redis.RedisService;
 import com.jsh.erp.service.role.RoleService;
@@ -37,11 +38,6 @@ import java.util.*;
 @Service
 public class UserService {
     private Logger logger = LoggerFactory.getLogger(UserService.class);
-
-    private static final String TEST_USER = "jsh";
-
-    @Value("${demonstrate.open}")
-    private boolean demonstrateOpen;
 
     @Resource
     private UserMapper userMapper;
@@ -106,18 +102,22 @@ public class UserService {
             list=userMapperEx.selectByConditionUser(userName, loginName, offset, rows);
             for(UserEx ue: list){
                 String userType = "";
-                if(demonstrateOpen && TEST_USER.equals(ue.getLoginName())){
-                    userType = "演示用户";
+                if (ue.getId().equals(ue.getTenantId())) {
+                    userType = "租户";
+                } else if(ue.getTenantId() == null){
+                    userType = "超管";
                 } else {
-                    if (ue.getId().equals(ue.getTenantId())) {
-                        userType = "租户";
-                    } else if(ue.getTenantId() == null){
-                        userType = "超管";
-                    } else {
-                        userType = "普通";
-                    }
+                    userType = "普通";
                 }
                 ue.setUserType(userType);
+                //是否经理
+                String leaderFlagStr = "";
+                if("1".equals(ue.getLeaderFlag())) {
+                    leaderFlagStr = "是";
+                } else {
+                    leaderFlagStr = "否";
+                }
+                ue.setLeaderFlagStr(leaderFlagStr);
             }
         }catch(Exception e){
             JshException.readFail(logger, e);
@@ -257,12 +257,6 @@ public class UserService {
         sb.append(BusinessConstants.LOG_OPERATION_TYPE_DELETE);
         List<User> list = getUserListByIds(ids);
         for(User user: list){
-            if(demonstrateOpen && user.getLoginName().equals(TEST_USER)){
-                logger.error("异常码[{}],异常提示[{}],参数,ids:[{}]",
-                        ExceptionConstants.USER_LIMIT_DELETE_CODE,ExceptionConstants.USER_LIMIT_DELETE_MSG,ids);
-                throw new BusinessRunTimeException(ExceptionConstants.USER_LIMIT_DELETE_CODE,
-                        ExceptionConstants.USER_LIMIT_DELETE_MSG);
-            }
             if(user.getId().equals(user.getTenantId())) {
                 logger.error("异常码[{}],异常提示[{}],参数,ids:[{}]",
                         ExceptionConstants.USER_LIMIT_TENANT_DELETE_CODE,ExceptionConstants.USER_LIMIT_TENANT_DELETE_MSG,ids);
@@ -376,25 +370,6 @@ public class UserService {
     }
 
     /**
-     * 检查当前用户是否是演示用户
-     * @return
-     */
-    public Boolean checkIsTestUser() throws Exception{
-        Boolean result = false;
-        try {
-            if (demonstrateOpen) {
-                User user = getCurrentUser();
-                if (TEST_USER.equals(user.getLoginName())) {
-                    result = true;
-                }
-            }
-        } catch (Exception e) {
-            JshException.readFail(logger, e);
-        }
-        return result;
-    }
-
-    /**
      * 根据用户名查询id
      * @param loginName
      * @return
@@ -420,7 +395,7 @@ public class UserService {
                     BusinessConstants.LOG_OPERATION_TYPE_ADD,
                     ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
             //检查用户名和登录名
-            checkUserNameAndLoginName(ue);
+            checkLoginName(ue);
             //新增用户信息
             ue= this.addUser(ue);
             if(ue==null){
@@ -441,6 +416,14 @@ public class UserService {
             if(ue.getOrgaId()==null){
                 //如果没有选择机构，就不建机构和用户的关联关系
                 return;
+            }
+            if(ue.getOrgaId()!=null && "1".equals(ue.getLeaderFlag())){
+                //检查当前机构是否存在经理
+                List<User> checkList = userMapperEx.getListByOrgaId(ue.getId(), ue.getOrgaId());
+                if(checkList.size()>0) {
+                    throw new BusinessRunTimeException(ExceptionConstants.USER_LEADER_IS_EXIST_CODE,
+                            ExceptionConstants.USER_LEADER_IS_EXIST_MSG);
+                }
             }
             //新增用户和机构关联关系
             OrgaUserRel oul=new OrgaUserRel();
@@ -557,17 +540,11 @@ public class UserService {
             throw new BusinessRunTimeException(ExceptionConstants.USER_NAME_LIMIT_USE_CODE,
                     ExceptionConstants.USER_NAME_LIMIT_USE_MSG);
         } else {
-            if(demonstrateOpen && ue.getLoginName().equals(TEST_USER)){
-                logger.error("异常码[{}],异常提示[{}],参数,obj:[{}]",
-                        ExceptionConstants.USER_LIMIT_UPDATE_CODE,ExceptionConstants.USER_LIMIT_UPDATE_MSG, TEST_USER);
-                throw new BusinessRunTimeException(ExceptionConstants.USER_LIMIT_UPDATE_CODE,
-                        ExceptionConstants.USER_LIMIT_UPDATE_MSG);
-            }
             logService.insertLog("用户",
                     new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(ue.getId()).toString(),
                     ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
             //检查用户名和登录名
-            checkUserNameAndLoginName(ue);
+            checkLoginName(ue);
             //更新用户信息
             ue = this.updateUser(ue);
             if (ue == null) {
@@ -592,6 +569,14 @@ public class UserService {
             if (ue.getOrgaId() == null) {
                 //如果没有选择机构，就不建机构和用户的关联关系
                 return;
+            }
+            if(ue.getOrgaId()!=null && "1".equals(ue.getLeaderFlag())){
+                //检查当前机构是否存在经理
+                List<User> checkList = userMapperEx.getListByOrgaId(ue.getId(), ue.getOrgaId());
+                if(checkList.size()>0) {
+                    throw new BusinessRunTimeException(ExceptionConstants.USER_LEADER_IS_EXIST_CODE,
+                            ExceptionConstants.USER_LEADER_IS_EXIST_MSG);
+                }
             }
             //更新用户和机构关联关系
             OrgaUserRel oul = new OrgaUserRel();
@@ -632,14 +617,12 @@ public class UserService {
         return null;
     }
     /**
-     * create by: cjl
-     * description:
-     *  检查用户名称和登录名不能重复
+     *  检查登录名不能重复
      * create time: 2019/3/12 11:36
      * @Param: userEx
      * @return void
      */
-    public void checkUserNameAndLoginName(UserEx userEx)throws Exception{
+    public void checkLoginName(UserEx userEx)throws Exception{
         List<User> list=null;
         if(userEx==null){
             return;
@@ -666,46 +649,8 @@ public class UserService {
                                 ExceptionConstants.USER_LOGIN_NAME_ALREADY_EXISTS_MSG);
                     }
                 }
-
             }
         }
-        //检查用户名
-        if(!StringUtils.isEmpty(userEx.getUsername())){
-            String userName=userEx.getUsername();
-            list=this.getUserListByUserName(userName);
-            if(list!=null&&list.size()>0){
-                if(list.size()>1){
-                    //超过一条数据存在，该用户名已存在
-                    logger.error("异常码[{}],异常提示[{}],参数,userName:[{}]",
-                            ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_CODE,ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_MSG,userName);
-                    throw new BusinessRunTimeException(ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_CODE,
-                            ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_MSG);
-                }
-                //一条数据，新增时抛出异常，修改时和当前的id不同时抛出异常
-                if(list.size()==1){
-                    if(userId==null||(userId!=null&&!userId.equals(list.get(0).getId()))){
-                        logger.error("异常码[{}],异常提示[{}],参数,userName:[{}]",
-                                ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_CODE,ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_MSG,userName);
-                        throw new BusinessRunTimeException(ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_CODE,
-                                ExceptionConstants.USER_USER_NAME_ALREADY_EXISTS_MSG);
-                    }
-                }
-
-            }
-        }
-
-    }
-    /**
-     * 通过用户名获取用户列表
-     * */
-    public List<User> getUserListByUserName(String userName)throws Exception{
-        List<User> list =null;
-        try{
-            list=userMapperEx.getUserListByUserNameOrLoginName(userName,null);
-        }catch(Exception e){
-            JshException.readFail(logger, e);
-        }
-        return list;
     }
     /**
      * 通过登录名获取用户列表
@@ -731,12 +676,13 @@ public class UserService {
     }
 
     /**
-     * 根据用户id查询角色类型
+     * 根据用户id查询角色信息
      * @param userId
      * @return
      */
     @Transactional(value = "transactionManager", rollbackFor = Exception.class)
-    public String getRoleTypeByUserId(long userId) throws Exception {
+    public Role getRoleTypeByUserId(long userId) throws Exception {
+        Role role = new Role();
         List<UserBusiness> list = userBusinessService.getBasicData(String.valueOf(userId), "UserRole");
         UserBusiness ub = null;
         if(list.size() > 0) {
@@ -750,15 +696,9 @@ public class UserService {
             if(valueArray.length>0) {
                 roleId = valueArray[0];
             }
-            Role role = roleService.getRoleWithoutTenant(Long.parseLong(roleId));
-            if(role!=null) {
-                return role.getType();
-            } else {
-                return null;
-            }
-        } else {
-            return null;
+            role = roleService.getRoleWithoutTenant(Long.parseLong(roleId));
         }
+        return role;
     }
 
     /**
@@ -818,15 +758,26 @@ public class UserService {
     }
 
     @Transactional(value = "transactionManager", rollbackFor = Exception.class)
-    public int batchSetStatus(Byte status, String ids)throws Exception {
+    public int batchSetStatus(Byte status, String ids, HttpServletRequest request)throws Exception {
         int result=0;
         List<User> list = getUserListByIds(ids);
+        //选中的用户的数量
+        int selectUserSize = list.size();
+        //查询启用状态的用户的数量
+        int enableUserSize = getUser().size();
+        long userNumLimit = Long.parseLong(redisService.getObjectFromSessionByKey(request,"userNumLimit").toString());
+        if(selectUserSize + enableUserSize > userNumLimit && status == 0) {
+            throw new BusinessParamCheckingException(ExceptionConstants.USER_ENABLE_OVER_LIMIT_FAILED_CODE,
+                    ExceptionConstants.USER_ENABLE_OVER_LIMIT_FAILED_MSG);
+        }
+        StringBuilder userStr = new StringBuilder();
+        List<Long> idList = new ArrayList<>();
         for(User user: list) {
-            if (demonstrateOpen && user.getLoginName().equals(TEST_USER)) {
-                logger.error("异常码[{}],异常提示[{}],参数,obj:[{}]",
-                        ExceptionConstants.USER_LIMIT_UPDATE_CODE, ExceptionConstants.USER_LIMIT_UPDATE_MSG, TEST_USER);
-                throw new BusinessRunTimeException(ExceptionConstants.USER_LIMIT_UPDATE_CODE,
-                        ExceptionConstants.USER_LIMIT_UPDATE_MSG);
+            if(user.getId().equals(user.getTenantId())) {
+                //租户不能进行禁用
+            } else {
+                idList.add(user.getId());
+                userStr.append(user.getLoginName()).append(" ");
             }
         }
         String statusStr ="";
@@ -835,15 +786,18 @@ public class UserService {
         } else if(status == 2) {
             statusStr ="批量禁用";
         }
-        logService.insertLog("用户",
-                new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(ids).append("-").append(statusStr).toString(),
-                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
-        List<Long> idList = StringUtil.strToLongList(ids);
-        User user = new User();
-        user.setStatus(status);
-        UserExample example = new UserExample();
-        example.createCriteria().andIdIn(idList);
-        result = userMapper.updateByExampleSelective(user, example);
+        if(idList.size()>0) {
+            User user = new User();
+            user.setStatus(status);
+            UserExample example = new UserExample();
+            example.createCriteria().andIdIn(idList);
+            result = userMapper.updateByExampleSelective(user, example);
+            logService.insertLog("用户",
+                    new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(userStr).append("-").append(statusStr).toString(),
+                    ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+        } else {
+            result = 1;
+        }
         return result;
     }
 }

@@ -7,7 +7,7 @@
           size="large"
           v-decorator="['loginName',{initialValue:'', rules: validatorRules.loginName.rules}]"
           type="text"
-          @focus="initWeixin"
+          @mouseover="initWeixin"
           placeholder="请输入用户名">
           <a-icon slot="prefix" type="user" :style="{ color: 'rgba(0,0,0,.25)' }"/>
         </a-input>
@@ -18,6 +18,7 @@
           v-decorator="['password',{initialValue:'', rules: validatorRules.password.rules}]"
           size="large"
           type="password"
+          @mouseover="initWeixin"
           autocomplete="false"
           placeholder="密码">
           <a-icon slot="prefix" type="lock" :style="{ color: 'rgba(0,0,0,.25)' }"/>
@@ -38,6 +39,7 @@
           htmlType="submit"
           class="login-button"
           :loading="loginBtn"
+          @mouseover="initWeixin"
           @click.stop.prevent="handleSubmit"
           :disabled="loginBtn">确定
         </a-button>
@@ -48,13 +50,13 @@
           <a-col>
             © 2015-2030 {{systemTitle}} - Powered By
             <a style="color:#00458a;" :href="systemUrl" target="_blank">官方网站</a>
-            <span v-if="showWeixinSpan()" class="weixin" @mouseover="showWeixin" @click="hideWeixin">微信小程序</span>
           </a-col>
         </a-row>
       </div>
 
-      <div v-if="showWeixinFlag" style="text-align: center; padding-top: 10px;">
-        <img src="/static/weixin.jpg" style="width:258px" />
+      <div v-if="showWeixinFlag" style="text-align: center; padding-top: 20px;">
+        <img src="/static/weixin.jpg" style="width:160px" />
+        <div style="font-size:16px;padding-top:10px;font-weight:bold">欢迎【扫一扫】<br/>{{systemTitle}}微信小程序</div>
       </div>
     </a-form>
   </div>
@@ -118,6 +120,7 @@
       }
     },
     created () {
+      this.checkScreen()
       this.currdatetime = new Date().getTime();
       Vue.ls.remove(ACCESS_TOKEN)
       this.getRouterData()
@@ -173,10 +176,16 @@
               if(res && res.code === 200) {
                 let currentTime = new Date(); //新建一个日期对象，默认现在的时间
                 let expireTime = new Date(res.data.expireTime); //设置过去的一个时间点，"yyyy-MM-dd HH:mm:ss"格式化日期
+                let type = res.data.type  //租户类型，0免费租户，1付费租户
                 let difftime = expireTime - currentTime; //计算时间差
-                //如果距离到期还剩5天就进行提示续费
-                if(difftime<86400000*5) {
-                  this.$message.warning('您好，服务即将到期，请及时续费！',5)
+                let tipInfo = '您好，服务即将到期，请及时续费！'
+                //0免费租户-如果距离到期还剩5天就进行提示续费
+                if(type === '0' && difftime<86400000*5) {
+                  this.$message.warning(tipInfo,8)
+                }
+                //1付费租户-如果距离到期还剩15天就进行提示续费
+                if(type === '1' && difftime<86400000*15) {
+                  this.$message.warning(tipInfo,8)
                 }
               }
             })
@@ -272,14 +281,10 @@
       },
       //加载商品属性
       initMPropertyShort(){
-        let mPropertyListShort = '';
-        let params = {};
-        params.currentPage = 1;
-        params.pageSize = 100;
-        getAction('/materialProperty/list', params).then((res) => {
+        getAction('/materialProperty/getAllList').then((res) => {
           if(res && res.code === 200){
             if(res.data) {
-              let thisRows = res.data.rows; //属性列表
+              let thisRows = res.data; //属性列表
               Vue.ls.set('materialPropertyList', thisRows, 7 * 24 * 60 * 60 * 1000);
             }
           }
@@ -304,9 +309,58 @@
       showWeixin() {
         this.showWeixinFlag = true
       },
-      hideWeixin() {
-        this.showWeixinFlag = false
-      }
+      changeWeixinStatus() {
+        if(this.showWeixinFlag) {
+          this.showWeixinFlag = false
+        } else {
+          this.showWeixinFlag = true
+        }
+      },
+      checkScreen() {
+        let percentage = ''
+        let basicWidth = 1920
+        const currentWidth = window.screen.width
+        const currentHeight = window.screen.height
+        //浏览器的当前比例
+        const currentRatio = window.devicePixelRatio.toFixed(2)
+        //浏览器需要调整的比例
+        let needRatio = 1
+        let ratio = currentWidth/basicWidth
+        if(ratio>0.5 && ratio<0.67) {
+          percentage = '50%'
+          needRatio = 0.5
+        } if(ratio>=0.67 && ratio<0.75) {
+          percentage = '67%'
+          needRatio = 0.67
+        } else if(ratio>=0.75 && ratio<0.8) {
+          percentage = '75%'
+          needRatio = 0.75
+        } else if(ratio>=0.8 && ratio<0.9) {
+          percentage = '80%'
+          needRatio = 0.8
+        } else if(ratio>=1.1 && ratio<1.25) {
+          percentage = '110%'
+          needRatio = 1.1
+        } else if(ratio>=1.25 && ratio<1.5) {
+          percentage = '125%'
+          needRatio = 1.25
+        } else if(ratio>=1.5 && ratio<1.75) {
+          percentage = '150%'
+          needRatio = 1.5
+        }
+        //console.log(currentRatio)
+        //console.log(needRatio)
+        if(currentRatio-0 !== needRatio) {
+          this.openNotificationWithIcon('warning', currentWidth, currentHeight, percentage)
+        }
+      },
+      openNotificationWithIcon(type, currentWidth, currentHeight, percentage) {
+        this.$notification[type]({
+          message: '浏览器的缩放比例调整提示',
+          description: '检测到您显示器的分辨率为：' + currentWidth + '*' + currentHeight + ' ，为了获得更好的操作体验，建议您将浏览器的缩放比例调整至' + percentage,
+          duration: 10
+        });
+      },
     }
   }
 </script>

@@ -1,47 +1,69 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="800"
-    :visible="visible"
-    :confirmLoading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:25%;height: 50%;overflow-y: hidden">
-    <template slot="footer">
-      <a-button key="back" v-if="isReadOnly" @click="handleCancel">
-        关闭
-      </a-button>
-    </template>
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form" id="roleModal">
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="角色名称">
-          <a-input placeholder="请输入角色名称" v-decorator.trim="[ 'name', validatorRules.name]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="数据类型">
-          <a-tooltip title="1、全部数据-该角色对应的用户可以看到全部单据；2、本机构数据-该角色对应的用户可以看到自己所在机构的全部单据；
-          3、个人数据-该角色对应的用户只可以看到自己的单据。单据是指采购入库、销售出库等">
-            <a-select placeholder="请选择数据类型" v-decorator="[ 'type', validatorRules.type]">
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="800"
+      :visible="visible"
+      :confirmLoading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:15%;height: 60%;">
+      <template slot="footer">
+        <a-button key="back" v-if="isReadOnly" @click="handleCancel">
+          关闭
+        </a-button>
+      </template>
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form" id="roleModal">
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="角色名称">
+            <a-input placeholder="请输入角色名称" v-decorator.trim="[ 'name', validatorRules.name]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="数据类型">
+            <a-select placeholder="请选择数据类型" v-decorator="[ 'type', validatorRules.type]" style="width:94%">
               <a-select-option value="全部数据">全部数据</a-select-option>
               <a-select-option value="本机构数据">本机构数据</a-select-option>
               <a-select-option value="个人数据">个人数据</a-select-option>
             </a-select>
-          </a-tooltip>
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="描述">
-          <a-textarea :rows="2" placeholder="请输入描述" v-decorator="[ 'description', validatorRules.description ]" />
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+            <a-tooltip title="1、全部数据-该角色对应的用户可以看到全部单据；2、本机构数据-该角色对应的用户可以看到自己所在机构的全部单据；
+                3、个人数据-该角色对应的用户只可以看到自己的单据。单据是指采购入库、销售出库等">
+              <a-icon type="question-circle" style="width:6%; padding-left: 5px; font-size: 18px;" />
+            </a-tooltip>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="价格屏蔽">
+            <j-select-multiple style="width:94%" placeholder="请选择价格屏蔽" v-model="priceLimitList.value" :options="priceLimitList.options"/>
+            <a-tooltip title="价格屏蔽支持多选，主要用于控制首页界面和物料的价格屏蔽">
+              <a-icon type="question-circle" style="width:6%; padding-left: 5px; font-size: 18px;" />
+            </a-tooltip>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="备注">
+            <a-textarea :rows="1" placeholder="请输入备注" v-decorator="[ 'description', validatorRules.description ]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="排序">
+            <a-input placeholder="请输入排序" v-decorator.trim="[ 'sort' ]" />
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 <script>
   import pick from 'lodash.pick'
+  import JSelectMultiple from '@/components/jeecg/JSelectMultiple'
   import {addRole,editRole,checkRole } from '@/api/api'
   import {autoJumpNextInput} from "@/utils/util"
+  import {mixinDevice} from '@/utils/mixin'
   export default {
     name: "RoleModal",
+    mixins: [mixinDevice],
+    components: {
+      JSelectMultiple
+    },
     data () {
       return {
         title:"操作",
@@ -55,6 +77,14 @@
         wrapperCol: {
           xs: { span: 24 },
           sm: { span: 16 },
+        },
+        priceLimitList: {
+          options: [
+            { 'value': '1', 'text': '屏蔽采购价'},
+            { 'value': '2', 'text': '屏蔽零售价'},
+            { 'value': '3', 'text': '屏蔽销售价'}
+          ],
+          value: ''
         },
         confirmLoading: false,
         form: this.$form.createForm(this),
@@ -88,9 +118,10 @@
       edit (record) {
         this.form.resetFields();
         this.model = Object.assign({}, record);
+        this.priceLimitList.value = this.model.priceLimit
         this.visible = true;
         this.$nextTick(() => {
-          this.form.setFieldsValue(pick(this.model,'name', 'type', 'description'))
+          this.form.setFieldsValue(pick(this.model,'name', 'type', 'sort', 'description'))
           autoJumpNextInput('roleModal')
         });
       },
@@ -105,6 +136,7 @@
           if (!err) {
             that.confirmLoading = true;
             let formData = Object.assign(this.model, values);
+            formData.priceLimit = this.priceLimitList.value
             let obj;
             if(!this.model.id){
               obj=addRole(formData);

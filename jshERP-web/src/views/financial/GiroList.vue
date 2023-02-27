@@ -86,8 +86,8 @@
           <a-dropdown>
             <a-menu slot="overlay">
               <a-menu-item key="1" v-if="btnEnableList.indexOf(1)>-1" @click="batchDel"><a-icon type="delete"/>删除</a-menu-item>
-              <a-menu-item key="2" v-if="btnEnableList.indexOf(2)>-1" @click="batchSetStatus(1)"><a-icon type="check"/>审核</a-menu-item>
-              <a-menu-item key="3" v-if="btnEnableList.indexOf(7)>-1" @click="batchSetStatus(0)"><a-icon type="stop"/>反审核</a-menu-item>
+              <a-menu-item key="2" v-if="checkFlag && btnEnableList.indexOf(2)>-1" @click="batchSetStatus(1)"><a-icon type="check"/>审核</a-menu-item>
+              <a-menu-item key="3" v-if="checkFlag && btnEnableList.indexOf(7)>-1" @click="batchSetStatus(0)"><a-icon type="stop"/>反审核</a-menu-item>
             </a-menu>
             <a-button>
               批量操作 <a-icon type="down" />
@@ -106,13 +106,14 @@
             rowKey="id"
             :columns="columns"
             :dataSource="dataSource"
+            :components="handleDrag(columns)"
             :pagination="ipagination"
             :scroll="scroll"
             :loading="loading"
             :rowSelection="{selectedRowKeys: selectedRowKeys, onChange: onSelectChange}"
             @change="handleTableChange">
             <span slot="action" slot-scope="text, record">
-              <a @click="myHandleDetail(record, '转账')">查看</a>
+              <a @click="myHandleDetail(record, '转账', prefixNo)">查看</a>
               <a-divider v-if="btnEnableList.indexOf(1)>-1" type="vertical" />
               <a v-if="btnEnableList.indexOf(1)>-1" @click="myHandleEdit(record)">编辑</a>
               <a-divider v-if="btnEnableList.indexOf(1)>-1" type="vertical" />
@@ -123,13 +124,14 @@
             <template slot="customRenderStatus" slot-scope="status">
               <a-tag v-if="status == '0'" color="red">未审核</a-tag>
               <a-tag v-if="status == '1'" color="green">已审核</a-tag>
+              <a-tag v-if="status == '9'" color="orange">审核中</a-tag>
             </template>
           </a-table>
         </div>
         <!-- table区域-end -->
         <!-- 表单区域 -->
         <giro-modal ref="modalForm" @ok="modalFormOk"></giro-modal>
-        <financial-detail ref="modalDetail"></financial-detail>
+        <financial-detail ref="modalDetail" @ok="modalFormOk"></financial-detail>
       </a-card>
     </a-col>
   </a-row>
@@ -170,8 +172,16 @@
           remark: "",
           roleType: Vue.ls.get('roleType')
         },
+        prefixNo: 'ZZ',
         // 表头
         columns: [
+          {
+            title: '操作',
+            dataIndex: 'action',
+            width:200,
+            align:"center",
+            scopedSlots: { customRender: 'action' },
+          },
           { title: '财务人员', dataIndex: 'handsPersonName',width:140},
           { title: '单据编号', dataIndex: 'billNo',width:160},
           { title: '单据日期 ', dataIndex: 'billTimeStr',width:160},
@@ -180,13 +190,6 @@
           { title: '备注', dataIndex: 'remark',width:200},
           { title: '状态', dataIndex: 'status', width: 80, align: "center",
             scopedSlots: { customRender: 'customRenderStatus' }
-          },
-          {
-            title: '操作',
-            dataIndex: 'action',
-            width:200,
-            align:"center",
-            scopedSlots: { customRender: 'action' },
           }
         ],
         url: {
@@ -200,6 +203,7 @@
     computed: {
     },
     created () {
+      this.initSystemConfig()
       this.initUser()
       this.initPerson()
       this.initAccount()

@@ -14,7 +14,7 @@
               <a-col :md="6" :sm="24">
                 <a-form-item label="租户类型" :labelCol="labelCol" :wrapperCol="wrapperCol">
                   <a-select v-model="queryParam.type" placeholder="请选择租户类型">
-                    <a-select-option value="0">免费租户</a-select-option>
+                    <a-select-option value="0">试用租户</a-select-option>
                     <a-select-option value="1">付费租户</a-select-option>
                   </a-select>
                 </a-form-item>
@@ -31,8 +31,19 @@
                 <span style="float: left;overflow: hidden;" class="table-page-search-submitButtons">
                   <a-button type="primary" @click="searchQuery">查询</a-button>
                   <a-button style="margin-left: 8px" @click="searchReset">重置</a-button>
+                  <a @click="handleToggleSearch" style="margin-left: 8px">
+                    {{ toggleSearchStatus ? '收起' : '展开' }}
+                    <a-icon :type="toggleSearchStatus ? 'up' : 'down'"/>
+                  </a>
                 </span>
               </a-col>
+              <template v-if="toggleSearchStatus">
+                <a-col :md="6" :sm="24">
+                  <a-form-item label="备注" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                    <a-input v-model="queryParam.remark" placeholder="请输入备注"></a-input>
+                  </a-form-item>
+                </a-col>
+              </template>
             </a-row>
           </a-form>
         </div>
@@ -69,7 +80,7 @@
             </span>
             <!-- 状态渲染模板 -->
             <template slot="customRenderType" slot-scope="type">
-              <a-tag v-if="type==0">免费租户</a-tag>
+              <a-tag v-if="type==0">试用租户</a-tag>
               <a-tag v-if="type==1" color="green">付费租户</a-tag>
             </template>
             <template slot="customRenderEnabled" slot-scope="enabled">
@@ -108,7 +119,8 @@
         queryParam: {
           loginName: '',
           type: '',
-          enabled: ''
+          enabled: '',
+          remark: ''
         },
         columns: [
           {
@@ -121,24 +133,25 @@
               return parseInt(index)+1;
             }
           },
-          { title: '登录名称', dataIndex: 'loginName', width: 100, align: "center"},
-          { title: '用户数量限制', dataIndex: 'userNumLimit', width: 100, align: "center"},
-          { title: '租户类型',dataIndex: 'type',width:70,align:"center",
-            scopedSlots: { customRender: 'customRenderType' }
-          },
-          { title: '租户状态',dataIndex: 'enabled',width:70,align:"center",
-            scopedSlots: { customRender: 'customRenderEnabled' }
-          },
-          { title: '创建时间', dataIndex: 'createTimeStr', width: 100, align: "center"},
-          { title: '到期时间', dataIndex: 'expireTimeStr', width: 100, align: "center"},
-          { title: '描述', dataIndex: 'remark', width: 200, align: "center", ellipsis:true},
           {
             title: '操作',
             dataIndex: 'action',
             scopedSlots: {customRender: 'action'},
             align: "center",
             width: 100
-          }
+          },
+          { title: '登录名称', dataIndex: 'loginName', width: 100, align: "center"},
+          { title: '用户数量', dataIndex: 'userCount', width: 60, align: "center"},
+          { title: '用户数量限制', dataIndex: 'userNumLimit', width: 80, align: "center"},
+          { title: '租户类型',dataIndex: 'type',width:60,align:"center",
+            scopedSlots: { customRender: 'customRenderType' }
+          },
+          { title: '租户状态',dataIndex: 'enabled',width:60,align:"center",
+            scopedSlots: { customRender: 'customRenderEnabled' }
+          },
+          { title: '创建时间', dataIndex: 'createTimeStr', width: 100, align: "center"},
+          { title: '到期时间', dataIndex: 'expireTimeStr', width: 100, align: "center"},
+          { title: '备注', dataIndex: 'remark', width: 200, align: "center", ellipsis:true}
         ],
         url: {
           list: "/tenant/list",

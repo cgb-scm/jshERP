@@ -37,6 +37,26 @@ public class DepotHeadVo4List extends DepotHead{
 
     private BigDecimal finishDeposit;
 
+    private BigDecimal needDebt;
+
+    private BigDecimal debt;
+
+    private BigDecimal materialCount;
+
+    /**
+     * 是否有付款单或收款单
+     */
+    private Boolean hasFinancialFlag;
+    /**
+     * 是否有退款单
+     */
+    private Boolean hasBackFlag;
+
+    /**
+     * 实际欠款
+     */
+    private BigDecimal realNeedDebt;
+
     public String getProjectName() {
         return projectName;
     }
@@ -155,5 +175,53 @@ public class DepotHeadVo4List extends DepotHead{
 
     public void setFinishDeposit(BigDecimal finishDeposit) {
         this.finishDeposit = finishDeposit;
+    }
+
+    public BigDecimal getNeedDebt() {
+        return needDebt;
+    }
+
+    public void setNeedDebt(BigDecimal needDebt) {
+        this.needDebt = needDebt;
+    }
+
+    public BigDecimal getDebt() {
+        return debt;
+    }
+
+    public void setDebt(BigDecimal debt) {
+        this.debt = debt;
+    }
+
+    public BigDecimal getMaterialCount() {
+        return materialCount;
+    }
+
+    public void setMaterialCount(BigDecimal materialCount) {
+        this.materialCount = materialCount;
+    }
+
+    public Boolean getHasFinancialFlag() {
+        return hasFinancialFlag;
+    }
+
+    public void setHasFinancialFlag(Boolean hasFinancialFlag) {
+        this.hasFinancialFlag = hasFinancialFlag;
+    }
+
+    public Boolean getHasBackFlag() {
+        return hasBackFlag;
+    }
+
+    public void setHasBackFlag(Boolean hasBackFlag) {
+        this.hasBackFlag = hasBackFlag;
+    }
+
+    public BigDecimal getRealNeedDebt() {
+        return realNeedDebt;
+    }
+
+    public void setRealNeedDebt(BigDecimal realNeedDebt) {
+        this.realNeedDebt = realNeedDebt;
     }
 }

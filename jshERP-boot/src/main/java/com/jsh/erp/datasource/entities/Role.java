@@ -7,9 +7,15 @@ public class Role {
 
     private String type;
 
+    private String priceLimit;
+
     private String value;
 
     private String description;
+
+    private Boolean enabled;
+
+    private String sort;
 
     private Long tenantId;
 
@@ -39,6 +45,14 @@ public class Role {
         this.type = type == null ? null : type.trim();
     }
 
+    public String getPriceLimit() {
+        return priceLimit;
+    }
+
+    public void setPriceLimit(String priceLimit) {
+        this.priceLimit = priceLimit == null ? null : priceLimit.trim();
+    }
+
     public String getValue() {
         return value;
     }
@@ -53,6 +67,22 @@ public class Role {
 
     public void setDescription(String description) {
         this.description = description == null ? null : description.trim();
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    public String getSort() {
+        return sort;
+    }
+
+    public void setSort(String sort) {
+        this.sort = sort == null ? null : sort.trim();
     }
 
     public Long getTenantId() {

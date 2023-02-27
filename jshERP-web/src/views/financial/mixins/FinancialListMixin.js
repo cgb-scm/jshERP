@@ -1,9 +1,14 @@
-import {findBySelectSup, findBySelectCus, findBySelectOrgan, findBySelectRetail, getUserList, getPersonByType, getAccount} from '@/api/api'
+import {findFinancialDetailByNumber, findBySelectSup, findBySelectCus, findBySelectOrgan, findBySelectRetail,
+  getUserList, getPersonByType, getAccount, getCurrentSystemConfig} from '@/api/api'
+import { getCheckFlag } from "@/utils/util"
 import Vue from 'vue'
 
 export const FinancialListMixin = {
   data () {
     return {
+      /* 原始审核是否开启 */
+      checkFlag: true,
+      prefixNo: '',
       supList: [],
       cusList: [],
       organList: [],
@@ -43,7 +48,13 @@ export const FinancialListMixin = {
         if(this.btnEnableList.indexOf(2)===-1) {
           this.$refs.modalForm.isCanCheck = false
         }
-        this.handleEdit(record);
+        //查询单条财务信息
+        findFinancialDetailByNumber({ billNo: record.billNo }).then((res) => {
+          if (res && res.code === 200) {
+            let item = res.data
+            this.handleEdit(item)
+          }
+        })
       } else {
         this.$message.warning("抱歉，只有未审核的单据才能编辑！")
       }
@@ -55,8 +66,11 @@ export const FinancialListMixin = {
         this.$message.warning("抱歉，只有未审核的单据才能删除！")
       }
     },
-    myHandleDetail(record, type) {
-      this.handleDetail(record, type);
+    myHandleDetail(record, type, prefixNo) {
+      if(this.btnEnableList.indexOf(7)===-1) {
+        this.$refs.modalDetail.isCanBackCheck = false
+      }
+      this.handleDetail(record, type, prefixNo);
     },
     handleApprove(record) {
       this.$refs.modalForm.action = "approve";
@@ -69,6 +83,15 @@ export const FinancialListMixin = {
         roleType: Vue.ls.get('roleType')
       }
       this.loadData(1);
+    },
+    initSystemConfig() {
+      getCurrentSystemConfig().then((res) => {
+        if(res.code === 200 && res.data){
+          let multiBillType = res.data.multiBillType
+          let multiLevelApprovalFlag = res.data.multiLevelApprovalFlag
+          this.checkFlag = getCheckFlag(multiBillType, multiLevelApprovalFlag, this.prefixNo)
+        }
+      })
     },
     initSupplier() {
       let that = this;

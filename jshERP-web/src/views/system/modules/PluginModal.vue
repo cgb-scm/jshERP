@@ -1,32 +1,40 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="800"
-    :visible="visible"
-    :confirmLoading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:25%;height: 50%;overflow-y: hidden">
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form">
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="机器码">
-          <a-input v-decorator.trim="[ 'platformKey' ]" :readOnly="true"/>
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="激活码">
-          <a-textarea :rows="2" placeholder="请输入激活码" v-decorator="[ 'platformValue' ]"/>
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="800"
+      :visible="visible"
+      :confirmLoading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:20%;height: 50%;">
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form">
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="机器码">
+            <a-input v-decorator.trim="[ 'platformKey' ]" :readOnly="true"/>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="插件激活码">
+            <a-textarea :rows="2" placeholder="请输入插件激活码" v-decorator="[ 'platformValue' ]"/>
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 <script>
   import pick from 'lodash.pick'
   import {getPlatformConfigByKey } from '@/api/api'
+  import {mixinDevice} from '@/utils/mixin'
   import { getAction, postAction } from '../../../api/manage'
   export default {
     name: "PluginModal",
+    mixins: [mixinDevice],
     data () {
       return {
         title:"操作",
@@ -44,17 +52,6 @@
         },
         confirmLoading: false,
         form: this.$form.createForm(this),
-        validatorRules:{
-          name:{
-            rules: [
-              { required: true, message: '请输入姓名!' },
-            ]},
-          type:{
-            rules: [
-              { required: true, message: '请选择类型!' }
-            ]
-          }
-        },
       }
     },
     created () {

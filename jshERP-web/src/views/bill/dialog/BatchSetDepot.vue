@@ -1,37 +1,45 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="500"
-    :visible="visible"
-    :confirmLoading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:30%;height: 35%;overflow-y: hidden">
-    <template slot="footer">
-      <a-button key="back" v-if="isReadOnly" @click="handleCancel">
-        关闭
-      </a-button>
-    </template>
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form" id="batchSetDepot">
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="仓库名称">
-          <a-select placeholder="请选择仓库" v-decorator="[ 'depotId', validatorRules.depotId ]" showSearch optionFilterProp="children">
-            <a-select-option v-for="(depot,index) in depotList" :value="depot.id">
-              {{ depot.depotName }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="500"
+      :visible="visible"
+      :confirmLoading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:30%;height: 35%;">
+      <template slot="footer">
+        <a-button key="back" v-if="isReadOnly" @click="handleCancel">
+          关闭
+        </a-button>
+      </template>
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form" id="batchSetDepot">
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="仓库名称">
+            <a-select placeholder="请选择仓库" v-decorator="[ 'depotId', validatorRules.depotId ]" showSearch optionFilterProp="children">
+              <a-select-option v-for="(depot,index) in depotList" :value="depot.id">
+                {{ depot.depotName }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 <script>
   import pick from 'lodash.pick'
   import { getAction } from '@/api/manage'
+  import {mixinDevice} from '@/utils/mixin'
   export default {
     name: "BatchSetDepot",
+    mixins: [mixinDevice],
     data () {
       return {
         title:"操作",

@@ -1,59 +1,71 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="800"
-    :visible="visible"
-    :confirmLoading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:10%;height: 85%;overflow-y: hidden">
-    <template slot="footer">
-      <a-button key="back" v-if="isReadOnly" @click="handleCancel">
-        关闭
-      </a-button>
-    </template>
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form" id="userModal">
-        <a-form-item label="登录名称" :labelCol="labelCol" :wrapperCol="wrapperCol">
-          <a-input placeholder="请输入登录名称" v-decorator.trim="[ 'loginName', validatorRules.loginName]" :readOnly="!!model.id"
-           suffix="初始密码：123456" />
-        </a-form-item>
-        <a-form-item label="用户姓名" :labelCol="labelCol" :wrapperCol="wrapperCol" >
-          <a-input placeholder="请输入用户姓名" v-decorator.trim="[ 'username', validatorRules.username]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="角色">
-          <a-select v-if="model.roleName!='租户'" placeholder="选择角色" v-decorator="[ 'roleId', validatorRules.roleId]" :dropdownMatchSelectWidth="false">
-            <a-select-option v-for="(item,index) in roleList" :key="index" :value="item.id">
-              {{ item.name }}
-            </a-select-option>
-          </a-select>
-          <a-col v-if="model.roleName=='租户'"><a-row>租户</a-row></a-col>
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="机构">
-          <a-tree-select style="width:100%" :dropdownStyle="{maxHeight:'200px',overflow:'auto'}" allow-clear
-             :treeData="orgaTree" v-decorator="[ 'orgaId' ]" placeholder="请选择机构">
-          </a-tree-select>
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="职位">
-          <a-input placeholder="请输入职位" v-decorator.trim="[ 'position' ]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="电话号码">
-          <a-input placeholder="请输入电话号码" v-decorator.trim="[ 'phonenum' ]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="电子邮箱">
-          <a-input placeholder="请输入电子邮箱" v-decorator.trim="[ 'email' ]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="排序">
-          <a-input placeholder="请输入排序" v-decorator.trim="[ 'userBlngOrgaDsplSeq' ]" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="描述">
-          <a-textarea :rows="2" placeholder="请输入描述" v-decorator="[ 'description' ]" />
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="800"
+      :visible="visible"
+      :confirmLoading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:5%;height: 85%;">
+      <template slot="footer">
+        <a-button key="back" v-if="isReadOnly" @click="handleCancel">
+          关闭
+        </a-button>
+      </template>
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form" id="userModal">
+          <a-form-item label="登录名称" :labelCol="labelCol" :wrapperCol="wrapperCol">
+            <a-input placeholder="请输入登录名称" v-decorator.trim="[ 'loginName', validatorRules.loginName]" :readOnly="!!model.id"
+             suffix="初始密码：123456" />
+          </a-form-item>
+          <a-form-item label="用户姓名" :labelCol="labelCol" :wrapperCol="wrapperCol" >
+            <a-input placeholder="请输入用户姓名" v-decorator.trim="[ 'username', validatorRules.username]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="角色">
+            <a-select v-if="model.roleName!='租户'" placeholder="选择角色" v-decorator="[ 'roleId', validatorRules.roleId]" :dropdownMatchSelectWidth="false">
+              <a-select-option v-for="(item,index) in roleList" :key="index" :value="item.id">
+                {{ item.name }}
+              </a-select-option>
+            </a-select>
+            <a-col v-if="model.roleName=='租户'"><a-row>租户</a-row></a-col>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="机构">
+            <a-tree-select style="width:100%" :dropdownStyle="{maxHeight:'200px',overflow:'auto'}" allow-clear
+               :treeData="orgaTree" v-decorator="[ 'orgaId' ]" placeholder="请选择机构">
+            </a-tree-select>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="职位">
+            <a-input placeholder="请输入职位" v-decorator.trim="[ 'position' ]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="是否经理">
+            <a-select placeholder="请选择是否经理" v-decorator="[ 'leaderFlag' ]">
+              <a-select-option value="1">是</a-select-option>
+              <a-select-option value="0">否</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="电话号码">
+            <a-input placeholder="请输入电话号码" v-decorator.trim="[ 'phonenum' ]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="电子邮箱">
+            <a-input placeholder="请输入电子邮箱" v-decorator.trim="[ 'email' ]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="排序">
+            <a-input placeholder="请输入排序" v-decorator.trim="[ 'userBlngOrgaDsplSeq' ]" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="备注">
+            <a-textarea :rows="2" placeholder="请输入备注" v-decorator="[ 'description' ]" />
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 <script>
   import pick from 'lodash.pick'
@@ -63,11 +75,12 @@
   import { getAction } from '@/api/manage'
   import {addUser,editUser,queryOrganizationTreeList,roleAllList} from '@/api/api'
   import { disabledAuthFilter } from "@/utils/authFilter"
-  import {duplicateCheck } from '@/api/api'
   import {autoJumpNextInput} from "@/utils/util"
+  import {mixinDevice} from '@/utils/mixin'
   import JImageUpload from '../../../components/jeecg/JImageUpload'
   export default {
     name: "UserModal",
+    mixins: [mixinDevice],
     components: {
       JImageUpload,
       JSelectPosition
@@ -132,7 +145,7 @@
         this.visible = true;
         this.model = Object.assign({}, record);
         this.$nextTick(() => {
-          this.form.setFieldsValue(pick(this.model,'loginName','username','roleId','orgaId','position',
+          this.form.setFieldsValue(pick(this.model,'loginName','username','roleId','orgaId','position','leaderFlag',
             'phonenum','email','userBlngOrgaDsplSeq','description'))
           autoJumpNextInput('userModal')
         });

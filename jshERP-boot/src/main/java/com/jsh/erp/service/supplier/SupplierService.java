@@ -272,6 +272,7 @@ public class SupplierService {
     }
 
     public int checkIsNameAndTypeExist(Long id, String name, String type)throws Exception {
+        name = name == null? "": name;
         SupplierExample example = new SupplierExample();
         example.createCriteria().andIdNotEqualTo(id).andSupplierEqualTo(name).andTypeEqualTo(type)
                 .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
@@ -307,7 +308,7 @@ public class SupplierService {
     public List<Supplier> findBySelectCus()throws Exception {
         SupplierExample example = new SupplierExample();
         example.createCriteria().andTypeLike("客户").andEnabledEqualTo(true).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("id desc");
+        example.setOrderByClause("sort asc, id desc");
         List<Supplier> list=null;
         try{
             list = supplierMapper.selectByExample(example);
@@ -321,7 +322,7 @@ public class SupplierService {
         SupplierExample example = new SupplierExample();
         example.createCriteria().andTypeLike("供应商").andEnabledEqualTo(true)
                 .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("id desc");
+        example.setOrderByClause("sort asc, id desc");
         List<Supplier> list=null;
         try{
             list = supplierMapper.selectByExample(example);
@@ -335,7 +336,7 @@ public class SupplierService {
         SupplierExample example = new SupplierExample();
         example.createCriteria().andTypeLike("会员").andEnabledEqualTo(true)
                 .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("id desc");
+        example.setOrderByClause("sort asc, id desc");
         List<Supplier> list=null;
         try{
             list = supplierMapper.selectByExample(example);
@@ -349,7 +350,7 @@ public class SupplierService {
         SupplierExample example = new SupplierExample();
         example.createCriteria().andIdEqualTo(supplierId)
                 .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("id desc");
+        example.setOrderByClause("sort asc, id desc");
         List<Supplier> list=null;
         try{
             list = supplierMapper.selectByExample(example);
@@ -362,7 +363,7 @@ public class SupplierService {
     @Transactional(value = "transactionManager", rollbackFor = Exception.class)
     public int batchSetStatus(Boolean status, String ids)throws Exception {
         logService.insertLog("商家",
-                new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_EDIT).append(ids).toString(),
+                new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_ENABLED).toString(),
                 ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
         List<Long> supplierIds = StringUtil.strToLongList(ids);
         Supplier supplier = new Supplier();
@@ -382,7 +383,7 @@ public class SupplierService {
         SupplierExample example = new SupplierExample();
         example.createCriteria().andTypeEqualTo("客户")
                 .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("id desc");
+        example.setOrderByClause("sort asc, id desc");
         List<Supplier> list=null;
         try{
             list = supplierMapper.selectByExample(example);
@@ -406,27 +407,31 @@ public class SupplierService {
         String type = "供应商";
         Workbook workbook = Workbook.getWorkbook(file.getInputStream());
         Sheet src = workbook.getSheet(0);
-        //'名称', '联系人', '手机号码', '联系电话', '电子邮箱', '传真', '期初应付', '纳税人识别号', '税率(%)', '开户行', '账号', '地址', '备注', '状态'
+        //'名称', '联系人', '手机号码', '联系电话', '电子邮箱', '传真', '期初应付', '纳税人识别号', '税率(%)', '开户行', '账号', '地址', '备注', '排序', '状态'
         List<Supplier> sList = new ArrayList<>();
         for (int i = 2; i < src.getRows(); i++) {
-            Supplier s = new Supplier();
-            s.setType(type);
-            s.setSupplier(ExcelUtils.getContent(src, i, 0));
-            s.setContacts(ExcelUtils.getContent(src, i, 1));
-            s.setTelephone(ExcelUtils.getContent(src, i, 2));
-            s.setPhoneNum(ExcelUtils.getContent(src, i, 3));
-            s.setEmail(ExcelUtils.getContent(src, i, 4));
-            s.setFax(ExcelUtils.getContent(src, i, 5));
-            s.setBeginNeedGet(parseBigDecimalEx(ExcelUtils.getContent(src, i, 6)));
-            s.setTaxNum(ExcelUtils.getContent(src, i, 7));
-            s.setTaxRate(parseBigDecimalEx(ExcelUtils.getContent(src, i, 8)));
-            s.setBankName(ExcelUtils.getContent(src, i, 9));
-            s.setAccountNumber(ExcelUtils.getContent(src, i, 10));
-            s.setAddress(ExcelUtils.getContent(src, i, 11));
-            s.setDescription(ExcelUtils.getContent(src, i, 12));
-            String enabled = ExcelUtils.getContent(src, i, 13);
-            s.setEnabled(enabled.equals("1"));
-            sList.add(s);
+            String supplierName = ExcelUtils.getContent(src, i, 0);
+            String enabled = ExcelUtils.getContent(src, i, 14);
+            if(StringUtil.isNotEmpty(supplierName) && StringUtil.isNotEmpty(enabled)) {
+                Supplier s = new Supplier();
+                s.setType(type);
+                s.setSupplier(supplierName);
+                s.setContacts(ExcelUtils.getContent(src, i, 1));
+                s.setTelephone(ExcelUtils.getContent(src, i, 2));
+                s.setPhoneNum(ExcelUtils.getContent(src, i, 3));
+                s.setEmail(ExcelUtils.getContent(src, i, 4));
+                s.setFax(ExcelUtils.getContent(src, i, 5));
+                s.setBeginNeedPay(parseBigDecimalEx(ExcelUtils.getContent(src, i, 6)));
+                s.setTaxNum(ExcelUtils.getContent(src, i, 7));
+                s.setTaxRate(parseBigDecimalEx(ExcelUtils.getContent(src, i, 8)));
+                s.setBankName(ExcelUtils.getContent(src, i, 9));
+                s.setAccountNumber(ExcelUtils.getContent(src, i, 10));
+                s.setAddress(ExcelUtils.getContent(src, i, 11));
+                s.setDescription(ExcelUtils.getContent(src, i, 12));
+                s.setSort(ExcelUtils.getContent(src, i, 13));
+                s.setEnabled("1".equals(enabled));
+                sList.add(s);
+            }
         }
         importExcel(sList, type);
     }
@@ -435,27 +440,31 @@ public class SupplierService {
         String type = "客户";
         Workbook workbook = Workbook.getWorkbook(file.getInputStream());
         Sheet src = workbook.getSheet(0);
-        //'名称', '联系人', '手机号码', '联系电话', '电子邮箱', '传真', '期初应收', '纳税人识别号', '税率(%)', '开户行', '账号', '地址', '备注', '状态'
+        //'名称', '联系人', '手机号码', '联系电话', '电子邮箱', '传真', '期初应收', '纳税人识别号', '税率(%)', '开户行', '账号', '地址', '备注', '排序', '状态'
         List<Supplier> sList = new ArrayList<>();
         for (int i = 2; i < src.getRows(); i++) {
-            Supplier s = new Supplier();
-            s.setType(type);
-            s.setSupplier(ExcelUtils.getContent(src, i, 0));
-            s.setContacts(ExcelUtils.getContent(src, i, 1));
-            s.setTelephone(ExcelUtils.getContent(src, i, 2));
-            s.setPhoneNum(ExcelUtils.getContent(src, i, 3));
-            s.setEmail(ExcelUtils.getContent(src, i, 4));
-            s.setFax(ExcelUtils.getContent(src, i, 5));
-            s.setBeginNeedGet(parseBigDecimalEx(ExcelUtils.getContent(src, i, 6)));
-            s.setTaxNum(ExcelUtils.getContent(src, i, 7));
-            s.setTaxRate(parseBigDecimalEx(ExcelUtils.getContent(src, i, 8)));
-            s.setBankName(ExcelUtils.getContent(src, i, 9));
-            s.setAccountNumber(ExcelUtils.getContent(src, i, 10));
-            s.setAddress(ExcelUtils.getContent(src, i, 11));
-            s.setDescription(ExcelUtils.getContent(src, i, 12));
-            String enabled = ExcelUtils.getContent(src, i, 13);
-            s.setEnabled(enabled.equals("1"));
-            sList.add(s);
+            String supplierName = ExcelUtils.getContent(src, i, 0);
+            String enabled = ExcelUtils.getContent(src, i, 14);
+            if(StringUtil.isNotEmpty(supplierName) && StringUtil.isNotEmpty(enabled)) {
+                Supplier s = new Supplier();
+                s.setType(type);
+                s.setSupplier(supplierName);
+                s.setContacts(ExcelUtils.getContent(src, i, 1));
+                s.setTelephone(ExcelUtils.getContent(src, i, 2));
+                s.setPhoneNum(ExcelUtils.getContent(src, i, 3));
+                s.setEmail(ExcelUtils.getContent(src, i, 4));
+                s.setFax(ExcelUtils.getContent(src, i, 5));
+                s.setBeginNeedGet(parseBigDecimalEx(ExcelUtils.getContent(src, i, 6)));
+                s.setTaxNum(ExcelUtils.getContent(src, i, 7));
+                s.setTaxRate(parseBigDecimalEx(ExcelUtils.getContent(src, i, 8)));
+                s.setBankName(ExcelUtils.getContent(src, i, 9));
+                s.setAccountNumber(ExcelUtils.getContent(src, i, 10));
+                s.setAddress(ExcelUtils.getContent(src, i, 11));
+                s.setDescription(ExcelUtils.getContent(src, i, 12));
+                s.setSort(ExcelUtils.getContent(src, i, 13));
+                s.setEnabled("1".equals(enabled));
+                sList.add(s);
+            }
         }
         importExcel(sList, type);
     }
@@ -464,20 +473,24 @@ public class SupplierService {
         String type = "会员";
         Workbook workbook = Workbook.getWorkbook(file.getInputStream());
         Sheet src = workbook.getSheet(0);
-        //'名称', '联系人', '手机号码', '联系电话', '电子邮箱', '备注', '状态'
+        //'名称', '联系人', '手机号码', '联系电话', '电子邮箱', '备注', '排序', '状态'
         List<Supplier> sList = new ArrayList<>();
         for (int i = 2; i < src.getRows(); i++) {
-            Supplier s = new Supplier();
-            s.setType(type);
-            s.setSupplier(ExcelUtils.getContent(src, i, 0));
-            s.setContacts(ExcelUtils.getContent(src, i, 1));
-            s.setTelephone(ExcelUtils.getContent(src, i, 2));
-            s.setPhoneNum(ExcelUtils.getContent(src, i, 3));
-            s.setEmail(ExcelUtils.getContent(src, i, 4));
-            s.setDescription(ExcelUtils.getContent(src, i, 5));
-            String enabled = ExcelUtils.getContent(src, i, 6);
-            s.setEnabled(enabled.equals("1"));
-            sList.add(s);
+            String supplierName = ExcelUtils.getContent(src, i, 0);
+            String enabled = ExcelUtils.getContent(src, i, 7);
+            if(StringUtil.isNotEmpty(supplierName) && StringUtil.isNotEmpty(enabled)) {
+                Supplier s = new Supplier();
+                s.setType(type);
+                s.setSupplier(supplierName);
+                s.setContacts(ExcelUtils.getContent(src, i, 1));
+                s.setTelephone(ExcelUtils.getContent(src, i, 2));
+                s.setPhoneNum(ExcelUtils.getContent(src, i, 3));
+                s.setEmail(ExcelUtils.getContent(src, i, 4));
+                s.setDescription(ExcelUtils.getContent(src, i, 5));
+                s.setSort(ExcelUtils.getContent(src, i, 6));
+                s.setEnabled("1".equals(enabled));
+                sList.add(s);
+            }
         }
         importExcel(sList, type);
     }
@@ -492,7 +505,7 @@ public class SupplierService {
         try {
             for(Supplier s: mList) {
                 SupplierExample example = new SupplierExample();
-                example.createCriteria().andSupplierEqualTo(s.getSupplier()).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
+                example.createCriteria().andSupplierEqualTo(s.getSupplier()).andTypeEqualTo(type).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
                 List<Supplier> list= supplierMapper.selectByExample(example);
                 if(list.size() <= 0) {
                     supplierMapper.insertSelective(s);
@@ -528,20 +541,21 @@ public class SupplierService {
             return exportExcelVendorOrCustomer(dataList, type);
         } else {
             //会员
-            String[] names = {"名称", "联系人", "手机号码", "联系电话", "电子邮箱", "预付款", "备注", "状态"};
+            String[] names = {"会员卡号", "联系人", "手机号码", "联系电话", "电子邮箱", "预付款", "备注", "排序", "状态"};
             String title = "信息内容";
             List<String[]> objects = new ArrayList<String[]>();
             if (null != dataList) {
                 for (Supplier s : dataList) {
-                    String[] objs = new String[15];
+                    String[] objs = new String[10];
                     objs[0] = s.getSupplier();
                     objs[1] = s.getContacts();
                     objs[2] = s.getTelephone();
                     objs[3] = s.getPhoneNum();
                     objs[4] = s.getEmail();
-                    objs[5] = s.getAdvanceIn() == null? "" : s.getAdvanceIn().toString();
+                    objs[5] = s.getAdvanceIn() == null? "" : s.getAdvanceIn().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
                     objs[6] = s.getDescription();
-                    objs[7] = s.getEnabled() ? "启用" : "禁用";
+                    objs[7] = s.getSort();
+                    objs[8] = s.getEnabled() ? "启用" : "禁用";
                     objects.add(objs);
                 }
             }
@@ -560,7 +574,7 @@ public class SupplierService {
             allNeedStr = "期末应收";
         }
         String[] names = {"名称", "联系人", "手机号码", "联系电话", "电子邮箱", "传真", beginNeedStr,
-                allNeedStr, "纳税人识别号", "税率(%)", "开户行", "账号", "地址", "备注", "状态"};
+                allNeedStr, "纳税人识别号", "税率(%)", "开户行", "账号", "地址", "备注", "排序", "状态"};
         String title = "信息内容";
         List<String[]> objects = new ArrayList<String[]>();
         if (null != dataList) {
@@ -586,7 +600,7 @@ public class SupplierService {
                     sum = sum.add(beginNeedPay);
                     s.setAllNeedPay(sum);
                 }
-                String[] objs = new String[15];
+                String[] objs = new String[20];
                 objs[0] = s.getSupplier();
                 objs[1] = s.getContacts();
                 objs[2] = s.getTelephone();
@@ -594,19 +608,20 @@ public class SupplierService {
                 objs[4] = s.getEmail();
                 objs[5] = s.getFax();
                 if(("客户").equals(s.getType())) {
-                    objs[6] = s.getBeginNeedGet() == null? "" : s.getBeginNeedGet().toString();
-                    objs[7] = s.getAllNeedGet() == null? "" : s.getAllNeedGet().toString();
+                    objs[6] = s.getBeginNeedGet() == null? "" : s.getBeginNeedGet().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
+                    objs[7] = s.getAllNeedGet() == null? "" : s.getAllNeedGet().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
                 } else if(("供应商").equals(s.getType())) {
-                    objs[6] = s.getBeginNeedPay() == null? "" : s.getBeginNeedPay().toString();
-                    objs[7] = s.getAllNeedPay() == null? "" : s.getAllNeedPay().toString();
+                    objs[6] = s.getBeginNeedPay() == null? "" : s.getBeginNeedPay().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
+                    objs[7] = s.getAllNeedPay() == null? "" : s.getAllNeedPay().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
                 }
                 objs[8] = s.getTaxNum();
-                objs[9] = s.getTaxRate() == null? "" : s.getTaxRate().toString();
+                objs[9] = s.getTaxRate() == null? "" : s.getTaxRate().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
                 objs[10] = s.getBankName();
                 objs[11] = s.getAccountNumber();
                 objs[12] = s.getAddress();
                 objs[13] = s.getDescription();
-                objs[14] = s.getEnabled() ? "启用" : "禁用";
+                objs[14] = s.getSort();
+                objs[15] = s.getEnabled() ? "启用" : "禁用";
                 objects.add(objs);
             }
         }

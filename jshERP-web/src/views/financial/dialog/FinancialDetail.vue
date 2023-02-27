@@ -6,9 +6,9 @@
     :maskClosable="false"
     :keyboard="false"
     :forceRender="true"
+    :style="modalStyle"
     @cancel="handleCancel"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:5%;height: 100%;overflow-y: hidden">
+    wrapClassName="ant-modal-cust-warp">
     <template slot="footer">
       <!--此处为解决缓存问题-->
       <a-button v-if="financialType === '收预付款'" v-print="'#advanceInPrint'" ghost type="primary">打印</a-button>
@@ -17,7 +17,11 @@
       <a-button v-if="financialType === '支出'" v-print="'#itemOutPrint'" ghost type="primary">打印</a-button>
       <a-button v-if="financialType === '收款'" v-print="'#moneyInPrint'" ghost type="primary">打印</a-button>
       <a-button v-if="financialType === '付款'" v-print="'#moneyOutPrint'" ghost type="primary">打印</a-button>
+      <!--反审核-->
+      <a-button v-if="checkFlag && isCanBackCheck && model.status==='1'" @click="handleBackCheck()">反审核</a-button>
       <a-button key="back" @click="handleCancel">取消</a-button>
+      <!--发起多级审核-->
+      <a-button v-if="!checkFlag && model.status==='0'" @click="handleWorkflow()" type="primary">提交流程</a-button>
     </template>
     <a-form :form="form">
       <!--收预付款-->
@@ -138,7 +142,7 @@
         <section ref="print" id="itemInPrint">
           <a-row class="form-row" :gutter="24">
             <a-col :span="6">
-              <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="客户">
+              <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="往来单位">
                 <a-input v-decorator="['id']" hidden/>
                 {{model.organName}}
               </a-form-item>
@@ -196,7 +200,7 @@
         <section ref="print" id="itemOutPrint">
           <a-row class="form-row" :gutter="24">
             <a-col :span="6">
-              <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="供应商">
+              <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="往来单位">
                 <a-input v-decorator="['id']" hidden/>
                 {{model.organName}}
               </a-form-item>
@@ -392,16 +396,20 @@
         </a-row>
       </template>
     </a-form>
+    <workflow-iframe ref="modalWorkflow"></workflow-iframe>
   </j-modal>
 </template>
 <script>
   import pick from 'lodash.pick'
-  import { getAction } from '@/api/manage'
-  import { findBillDetailByNumber} from '@/api/api'
+  import { getAction, postAction } from '@/api/manage'
+  import { findFinancialDetailByNumber, getCurrentSystemConfig, getPlatformConfigByKey } from '@/api/api'
+  import { getCheckFlag } from "@/utils/util"
+  import WorkflowIframe from '@/components/tools/WorkflowIframe'
   import JUpload from '@/components/jeecg/JUpload'
   export default {
     name: 'FinancialDetail',
     components: {
+      WorkflowIframe,
       JUpload
     },
     data () {
@@ -409,9 +417,13 @@
         title: "详情",
         width: '1600px',
         visible: false,
+        modalStyle: '',
         model: {},
+        isCanBackCheck: true,
         financialType: '',
         fileList: [],
+        /* 原始反审核是否开启 */
+        checkFlag: true,
         labelCol: {
           xs: { span: 24 },
           sm: { span: 6 },
@@ -424,7 +436,8 @@
         loading: false,
         dataSource: [],
         url: {
-          detailList: '/accountItem/getDetailList'
+          detailList: '/accountItem/getDetailList',
+          batchSetStatusUrl: '/accountHead/batchSetStatus'
         },
         advanceInColumns: [
           { title: '账户名称',dataIndex: 'accountName',width: '30%'},
@@ -468,23 +481,32 @@
     },
     created () {
       let realScreenWidth = window.screen.width
-      this.width = realScreenWidth<1500?'1300px':'1550px'
+      this.width = realScreenWidth<1500?'1200px':'1550px'
     },
     methods: {
-      show(record, type) {
-        this.financialType = type
-        //附件下载
-        this.fileList = record.fileName
-        this.visible = true;
-        this.model = Object.assign({}, record);
-        this.$nextTick(() => {
-          this.form.setFieldsValue(pick(this.model,'id'))
-        });
-        let params = {
-          headerId: this.model.id,
-        }
-        let url = this.readOnly ? this.url.detailList : this.url.detailList;
-        this.requestSubTableData(url, params);
+      show(record, type, prefixNo) {
+        //查询单条财务信息
+        findFinancialDetailByNumber({ billNo: record.billNo }).then((res) => {
+          if (res && res.code === 200) {
+            let item = res.data
+            this.financialType = type
+            this.prefixNo = prefixNo
+            //附件下载
+            this.fileList = item.fileName
+            this.visible = true
+            this.modalStyle = 'top:20px;height: 95%;'
+            this.model = Object.assign({}, item)
+            this.$nextTick(() => {
+              this.form.setFieldsValue(pick(this.model, 'id'))
+            });
+            let params = {
+              headerId: this.model.id,
+            }
+            let url = this.readOnly ? this.url.detailList : this.url.detailList;
+            this.requestSubTableData(url, params);
+            this.getSystemConfig()
+          }
+        })
       },
       requestSubTableData(url, params, success) {
         this.loading = true
@@ -497,12 +519,53 @@
           this.loading = false
         })
       },
+      getSystemConfig() {
+        getCurrentSystemConfig().then((res) => {
+          if(res.code === 200 && res.data){
+            let multiBillType = res.data.multiBillType
+            let multiLevelApprovalFlag = res.data.multiLevelApprovalFlag
+            this.checkFlag = getCheckFlag(multiBillType, multiLevelApprovalFlag, this.prefixNo)
+          }
+        })
+      },
+      //发起流程
+      handleWorkflow() {
+        getPlatformConfigByKey({"platformKey": "send_workflow_url"}).then((res)=> {
+          if (res && res.code === 200) {
+            let sendWorkflowUrl = res.data.platformValue + '?no=' + this.model.billNo + '&type=2'
+            this.$refs.modalWorkflow.show(this.model, sendWorkflowUrl, 320)
+            this.$refs.modalWorkflow.title = "发起流程"
+          }
+        })
+      },
+      handleBackCheck() {
+        let that = this
+        this.$confirm({
+          title: "确认操作",
+          content: "是否对该单据进行反审核?",
+          onOk: function () {
+            that.loading = true
+            postAction(that.url.batchSetStatusUrl, {status: '0', ids: that.model.id}).then((res) => {
+              if(res.code === 200){
+                that.$emit('ok')
+                that.loading = false
+                that.close()
+              } else {
+                that.$message.warning(res.data.message)
+                that.loading = false
+              }
+            }).finally(() => {
+            })
+          }
+        })
+      },
       handleCancel() {
         this.close()
       },
       close() {
-        this.$emit('close');
-        this.visible = false;
+        this.$emit('close')
+        this.visible = false
+        this.modalStyle = ''
       },
     }
   }

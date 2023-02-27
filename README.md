@@ -2,15 +2,13 @@
 * 很多人说华夏ERP（英文名：jshERP）是目前人气领先的国产ERP系统
 * 虽然目前只有进销存+财务+生产的功能，但后面将会推出ERP的全部功能，有兴趣请帮点一下 **Star** 哦
 * **官网地址：http://www.huaxiaerp.com  商务或技术交流，请联系QQ：752718920 微信：shenhua861584**
-* 欢迎加入华夏ERP交流QQ群(入群帮安装)，群3：805736336(满)、群4：146571538
+* 推荐使用网络版（100元1年）淘宝链接：https://item.taobao.com/item.htm?id=674169489573
 * 平台地址：http://cloud.huaxiaerp.vip 欢迎大家注册租户进行使用
-* 系统默认租户账号：jsh，默认超管账户：admin，默认密码均为：123456
-* 感谢热心的小伙伴整理的用户手册 http://www.huaxiaerp.com/thread-9-1-1.html
-* 喜欢视频教程可以看这里 https://space.bilibili.com/540003552/channel/series 
+* 欢迎加入华夏ERP交流QQ群(入群帮安装)，群3：805736336(满)、群4：146571538
 
 # 定制和插件
-* 如有ERP **私人定制** 需求，请将需求整理成文档，发给邮箱： **752718920@qq.com** ，我会及时回复哒
-* 如需更多功能，欢迎购买作者小店的**插件** https://shop104070207.taobao.com/ 谢谢支持
+* 如有ERP私人定制需求，请将需求整理成文档，发给邮箱： **752718920@qq.com** ，我会及时回复哒
+* 如需更多功能，欢迎购买作者小店的插件 https://shop104070207.taobao.com/ 谢谢支持
 
 # 开发初衷
 * 华夏ERP立志为中小企业提供开源好用的ERP软件，降低企业的信息化成本
@@ -31,7 +29,7 @@
 * IDE: IntelliJ IDEA 2019.2+和JetBrains WebStorm 2019.3+
 * DB: Mysql 5.7.33
 * JDK: JDK 1.8
-* Node: Node 8.17.0
+* Node: Node 16.16.0
 * Maven: Maven 3.2.3+
 * Redis: 6.2.1
 * Nginx: 1.12.2 
@@ -42,9 +40,14 @@
 * Redis库：redis6.2.1
 * Nginx代理：nginx1.12.2
 * 操作系统：Windows、Linux等
+
+# 配套资料
+* 需要用户手册请访问这里 http://www.huaxiaerp.com/thread-9-1-1.html
+* 喜欢视频教程可以看这里 https://space.bilibili.com/540003552/channel/series 
 * 为方便大家搭建运行环境，分享了下载地址 https://pan.baidu.com/s/1jlild9uyGdQ7H2yaMx76zw  提取码:814g
-* 不会打包的小伙伴，请下载此打包后的文件 https://share.weiyun.com/Y6BXPOxn 密码：ae8jcy
+* 不会打包的小伙伴，请下载此打包后的文件 https://share.weiyun.com/NDJNLhry 密码：vd3aig
 * 不会部署的小伙伴，请参考部署教程 http://www.huaxiaerp.com/thread-177-1-1.html
+* 部署后登录系统的默认租户账号：jsh，默认超管账户：admin，默认密码均为：123456
 
 # 开源说明
 * 本系统100%开源，遵守GPL-3.0协议

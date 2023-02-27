@@ -1,32 +1,40 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="800"
-    :visible="visible"
-    :confirmLoading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:30%;height: 40%;overflow-y: hidden">
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form" id="platformConfigModal">
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="配置名称">
-          <a-input placeholder="请输入配置名称" v-decorator.trim="[ 'platformKeyInfo' ]" :readOnly="true" />
-        </a-form-item>
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="配置值">
-          <a-input placeholder="请输入配置值" v-decorator.trim="[ 'platformValue' ]" />
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="800"
+      :visible="visible"
+      :confirmLoading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:25%;height: 40%;">
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form" id="platformConfigModal">
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="配置名称">
+            <a-input placeholder="请输入配置名称" v-decorator.trim="[ 'platformKeyInfo' ]" :readOnly="true" />
+          </a-form-item>
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="配置值">
+            <a-input placeholder="请输入配置值" v-decorator.trim="[ 'platformValue' ]" />
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 <script>
   import pick from 'lodash.pick'
   import {addPlatformConfig,editPlatformConfig } from '@/api/api'
   import {autoJumpNextInput} from "@/utils/util"
+  import {mixinDevice} from '@/utils/mixin'
   export default {
     name: "PlatformConfigModal",
+    mixins: [mixinDevice],
     data () {
       return {
         title:"操作",

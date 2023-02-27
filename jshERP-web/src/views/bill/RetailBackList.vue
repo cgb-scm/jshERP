@@ -14,7 +14,7 @@
               </a-col>
               <a-col :md="6" :sm="24">
                 <a-form-item label="商品信息" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                  <a-input placeholder="请输入条码、名称、规格、型号" v-model="queryParam.materialParam"></a-input>
+                  <a-input placeholder="请输入条码、名称、规格、型号、颜色、扩展信息" v-model="queryParam.materialParam"></a-input>
                 </a-form-item>
               </a-col>
               <a-col :md="6" :sm="24">
@@ -104,8 +104,8 @@
           <a-dropdown>
             <a-menu slot="overlay">
               <a-menu-item key="1" v-if="btnEnableList.indexOf(1)>-1" @click="batchDel"><a-icon type="delete"/>删除</a-menu-item>
-              <a-menu-item key="2" v-if="btnEnableList.indexOf(2)>-1" @click="batchSetStatus(1)"><a-icon type="check"/>审核</a-menu-item>
-              <a-menu-item key="3" v-if="btnEnableList.indexOf(7)>-1" @click="batchSetStatus(0)"><a-icon type="stop"/>反审核</a-menu-item>
+              <a-menu-item key="2" v-if="checkFlag && btnEnableList.indexOf(2)>-1" @click="batchSetStatus(1)"><a-icon type="check"/>审核</a-menu-item>
+              <a-menu-item key="3" v-if="checkFlag && btnEnableList.indexOf(7)>-1" @click="batchSetStatus(0)"><a-icon type="stop"/>反审核</a-menu-item>
             </a-menu>
             <a-button>
               批量操作 <a-icon type="down" />
@@ -124,13 +124,14 @@
             rowKey="id"
             :columns="columns"
             :dataSource="dataSource"
+            :components="handleDrag(columns)"
             :pagination="ipagination"
             :scroll="scroll"
             :loading="loading"
             :rowSelection="{selectedRowKeys: selectedRowKeys, onChange: onSelectChange}"
             @change="handleTableChange">
             <span slot="action" slot-scope="text, record">
-              <a @click="myHandleDetail(record, '零售退货入库')">查看</a>
+              <a @click="myHandleDetail(record, '零售退货入库', prefixNo)">查看</a>
               <a-divider v-if="btnEnableList.indexOf(1)>-1" type="vertical" />
               <a v-if="btnEnableList.indexOf(1)>-1" @click="myHandleEdit(record)">编辑</a>
               <a-divider v-if="btnEnableList.indexOf(1)>-1" type="vertical" />
@@ -143,13 +144,14 @@
             <template slot="customRenderStatus" slot-scope="status">
               <a-tag v-if="status == '0'" color="red">未审核</a-tag>
               <a-tag v-if="status == '1'" color="green">已审核</a-tag>
+              <a-tag v-if="status == '9'" color="orange">审核中</a-tag>
             </template>
           </a-table>
         </div>
         <!-- table区域-end -->
         <!-- 表单区域 -->
         <retail-back-modal ref="modalForm" @ok="modalFormOk"></retail-back-modal>
-        <bill-detail ref="modalDetail"></bill-detail>
+        <bill-detail ref="modalDetail" @ok="modalFormOk"></bill-detail>
       </a-card>
     </a-col>
   </a-row>
@@ -187,6 +189,7 @@
           status: "",
           remark: ""
         },
+        prefixNo: 'LSTH',
         labelCol: {
           span: 5
         },
@@ -196,14 +199,17 @@
         },
         // 表头
         columns: [
+          {
+            title: '操作',
+            dataIndex: 'action',
+            align:"center", width: 150,
+            scopedSlots: { customRender: 'action' },
+          },
           { title: '会员', dataIndex: 'organName',width:120, ellipsis:true},
           { title: '单据编号', dataIndex: 'number',width:160,
             customRender:function (text,record,index) {
-              if(record.linkNumber) {
-                return text + "[转]";
-              } else {
-                return text;
-              }
+              text = record.linkNumber?text+"[转]":text
+              return text
             }
           },
           { title: '商品信息', dataIndex: 'materialsList',width:220, ellipsis:true,
@@ -215,6 +221,7 @@
           },
           { title: '单据日期', dataIndex: 'operTimeStr',width:145},
           { title: '操作员', dataIndex: 'userName',width:80, ellipsis:true},
+          { title: '数量', dataIndex: 'materialCount',width:60},
           { title: '金额合计', dataIndex: 'totalPrice',width:80},
           { title: '付款金额', dataIndex: 'getAmount',width:80,
             customRender:function (text,record,index) {
@@ -228,12 +235,6 @@
           { title: '找零', dataIndex: 'backAmount',width:50},
           { title: '状态', dataIndex: 'status', width: 80, align: "center",
             scopedSlots: { customRender: 'customRenderStatus' }
-          },
-          {
-            title: '操作',
-            dataIndex: 'action',
-            align:"center", width: 150,
-            scopedSlots: { customRender: 'action' },
           }
         ],
         url: {
@@ -247,6 +248,7 @@
     computed: {
     },
     created () {
+      this.initSystemConfig()
       this.initRetail()
       this.getDepotData()
       this.initUser()

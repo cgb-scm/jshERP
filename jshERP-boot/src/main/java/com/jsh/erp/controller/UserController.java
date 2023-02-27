@@ -13,6 +13,7 @@ import com.jsh.erp.datasource.vo.TreeNodeEx;
 import com.jsh.erp.exception.BusinessParamCheckingException;
 import com.jsh.erp.service.log.LogService;
 import com.jsh.erp.service.redis.RedisService;
+import com.jsh.erp.service.role.RoleService;
 import com.jsh.erp.service.tenant.TenantService;
 import com.jsh.erp.service.user.UserService;
 import com.jsh.erp.utils.*;
@@ -48,11 +49,11 @@ public class UserController {
     @Value("${manage.roleId}")
     private Integer manageRoleId;
 
-    @Value("${demonstrate.open}")
-    private boolean demonstrateOpen;
-
     @Resource
     private UserService userService;
+
+    @Resource
+    private RoleService roleService;
 
     @Resource
     private TenantService tenantService;
@@ -143,7 +144,7 @@ public class UserController {
             Map<String, Object> data = new HashMap<String, Object>();
             data.put("msgTip", msgTip);
             if(user!=null){
-                String roleType = userService.getRoleTypeByUserId(user.getId()); //角色类型
+                String roleType = userService.getRoleTypeByUserId(user.getId()).getType(); //角色类型
                 redisService.storageObjectBySession(token,"roleType",roleType);
                 redisService.storageObjectBySession(token,"clientIp", Tools.getLocalIp(request));
                 logService.insertLogWithUserId(user.getId(), user.getTenantId(), "用户",
@@ -232,10 +233,7 @@ public class UserController {
             String password = jsonObject.getString("password");
             User user = userService.getUser(userId);
             //必须和原始密码一致才可以更新密码
-            if(demonstrateOpen && user.getLoginName().equals(TEST_USER)){
-                flag = 3; //jsh用户不能修改密码
-                info = "jsh用户不能修改密码";
-            } else if (oldpwd.equalsIgnoreCase(user.getPassword())) {
+            if (oldpwd.equalsIgnoreCase(user.getPassword())) {
                 user.setPassword(password);
                 flag = userService.updateUserByObj(user); //1-成功
                 info = "修改成功";
@@ -363,7 +361,7 @@ public class UserController {
                                HttpServletRequest request)throws Exception{
         JSONObject result = ExceptionConstants.standardSuccess();
         ue.setUsername(ue.getLoginName());
-        userService.checkUserNameAndLoginName(ue); //检查用户名和登录名
+        userService.checkLoginName(ue); //检查登录名
         ue = userService.registerUser(ue,manageRoleId,request);
         return result;
     }
@@ -386,6 +384,24 @@ public class UserController {
             }
         }
         return arr;
+    }
+
+    @GetMapping(value = "/getCurrentPriceLimit")
+    @ApiOperation(value = "查询当前用户的价格屏蔽")
+    public BaseResponseInfo getCurrentPriceLimit(HttpServletRequest request)throws Exception {
+        BaseResponseInfo res = new BaseResponseInfo();
+        try {
+            Map<String, Object> data = new HashMap<>();
+            String priceLimit = roleService.getCurrentPriceLimit(request);
+            data.put("priceLimit", priceLimit);
+            res.code = 200;
+            res.data = data;
+        } catch(Exception e){
+            e.printStackTrace();
+            res.code = 500;
+            res.data = "获取session失败";
+        }
+        return res;
     }
 
     /**
@@ -450,7 +466,7 @@ public class UserController {
         Byte status = jsonObject.getByte("status");
         String ids = jsonObject.getString("ids");
         Map<String, Object> objectMap = new HashMap<>();
-        int res = userService.batchSetStatus(status, ids);
+        int res = userService.batchSetStatus(status, ids, request);
         if(res > 0) {
             return returnJson(objectMap, ErpInfo.OK.name, ErpInfo.OK.code);
         } else {
@@ -472,12 +488,13 @@ public class UserController {
             Long userId = Long.parseLong(redisService.getObjectFromSessionByKey(request,"userId").toString());
             User user = userService.getUser(userId);
             //获取当前用户数
-            Long userCurrentNum = userService.countUser(null, null);
+            int userCurrentNum = userService.getUser().size();
             Tenant tenant = tenantService.getTenantByTenantId(user.getTenantId());
             data.put("type", tenant.getType()); //租户类型，0免费租户，1付费租户
             data.put("expireTime", Tools.parseDateToStr(tenant.getExpireTime()));
             data.put("userCurrentNum", userCurrentNum);
             data.put("userNumLimit", tenant.getUserNumLimit());
+            data.put("tenantId", tenant.getTenantId());
             res.code = 200;
             res.data = data;
         } catch (Exception e) {

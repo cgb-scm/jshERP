@@ -3,11 +3,11 @@
     :width="modalWidth"
     :visible="visible"
     :title="title"
+    :wrapClassName="wrapClassNameInfo()"
     @ok="handleSubmit"
     @cancel="close"
     cancelText="关闭"
-    style="top:5%;height: 100%;overflow-y: hidden"
-    wrapClassName="ant-modal-cust-warp"
+    style="top:5%;height: 90%;overflow-y: hidden"
   >
     <a-row :gutter="10" style="padding: 10px; margin: -10px">
       <a-col :md="24" :sm="24">
@@ -42,6 +42,9 @@
                 <a-col :md="6" :sm="24">
                   <a-button type="primary" @click="loadMaterialData(1)">查询</a-button>
                   <a-button style="margin-left: 8px" @click="searchReset(1)">重置</a-button>
+                  <a-tooltip title="没查询到，决定新增商品！">
+                    <a-button style="margin-left: 8px" @click="addMaterial">新增</a-button>
+                  </a-tooltip>
                   <a @click="handleToggleSearch" style="margin-left: 8px">
                     {{ toggleSearchStatus ? '收起' : '展开' }}
                     <a-icon :type="toggleSearchStatus ? 'up' : 'down'"/>
@@ -80,32 +83,42 @@
             :loading="loading"
             :customRow="rowAction"
             @change="handleTableChange">
-            <template slot="customRenderEnableSerialNumber" slot-scope="enableSerialNumber">
-              <a-tag v-if="enableSerialNumber==1" color="green">有</a-tag>
-              <a-tag v-if="enableSerialNumber==0" color="orange">无</a-tag>
+            <template slot="customBarCode" slot-scope="text, record">
+              {{record.mBarCode}}
+              <a-popover placement="right" trigger="click">
+                <template slot="content">
+                  <img :src='getImgUrl(record.imgName)' width="500px" />
+                </template>
+                <a-icon v-if="record.imgName" style="font-size: 18px" theme="twoTone" type="file-image" />
+              </a-popover>
             </template>
-            <template slot="customRenderEnableBatchNumber" slot-scope="enableBatchNumber">
-              <a-tag v-if="enableBatchNumber==1" color="green">有</a-tag>
-              <a-tag v-if="enableBatchNumber==0" color="orange">无</a-tag>
+            <template slot="customName" slot-scope="text, record">
+              {{record.name}}
+              <a-tag v-if="record.enableSerialNumber==1" color="orange">序</a-tag>
+              <a-tag v-if="record.enableBatchNumber==1" color="orange">批</a-tag>
             </template>
           </a-table>
         </div>
       </a-col>
     </a-row>
+    <material-modal ref="modalForm" @ok="modalFormOk"></material-modal>
   </a-modal>
 </template>
 
 <script>
-  import { httpAction, getAction } from '@/api/manage'
+  import { getAction, getFileAccessHttpUrl } from '@/api/manage'
   import {filterObj, getMpListShort} from '@/utils/util'
   import {getMaterialBySelect, queryMaterialCategoryTreeList} from '@/api/api'
   import { JeecgListMixin } from '@/mixins/JeecgListMixin'
+  import {mixinDevice} from '@/utils/mixin'
   import Vue from 'vue'
 
   export default {
     name: 'JSelectMaterialModal',
-    mixins:[JeecgListMixin],
-    components: {},
+    mixins:[JeecgListMixin, mixinDevice],
+    components: {
+      MaterialModal: () => import('@/views/material/modules/MaterialModal')
+    },
     props: ['rows', 'multi', 'barCode'],
     data() {
       return {
@@ -127,8 +140,8 @@
         },
         categoryTree:[],
         columns: [
-          {dataIndex: 'mBarCode', title: '条码', align: 'left'},
-          {dataIndex: 'name', title: '名称'},
+          {dataIndex: 'mBarCode', title: '条码', scopedSlots: { customRender: 'customBarCode' }},
+          {dataIndex: 'name', title: '名称', scopedSlots: { customRender: 'customName' }},
           {dataIndex: 'categoryName', title: '类别'},
           {dataIndex: 'standard', title: '规格'},
           {dataIndex: 'model', title: '型号'},
@@ -136,13 +149,7 @@
           {dataIndex: 'unit', title: '单位'},
           {dataIndex: 'sku', title: '多属性'},
           {dataIndex: 'stock', title: '库存'},
-          {dataIndex: 'expand', title: '扩展信息'},
-          {dataIndex: 'enableSerialNumber', title: '序列号', align: "center",
-            scopedSlots: { customRender: 'customRenderEnableSerialNumber' }
-          },
-          {dataIndex: 'enableBatchNumber', title: '批号', align: "center",
-            scopedSlots: { customRender: 'customRenderEnableBatchNumber' }
-          }
+          {dataIndex: 'expand', title: '扩展信息'}
         ],
         scrollTrigger: {},
         dataSource: [],
@@ -212,8 +219,16 @@
             this.dataSource = res.rows
             this.ipagination.total = res.total
             if(res.total ===1) {
-              this.title = '选择商品【再次回车可以直接选中】'
-              this.$nextTick(() => this.$refs.material.focus());
+              if(this.queryParam.q === this.dataSource[0].mBarCode||
+                this.queryParam.q === this.dataSource[0].name||
+                this.queryParam.q === this.dataSource[0].standard||
+                this.queryParam.q === this.dataSource[0].model||
+                this.queryParam.q === this.dataSource[0].color) {
+                this.title = '选择商品【再次回车可以直接选中】'
+                this.$nextTick(() => this.$refs.material.focus());
+              } else {
+                this.title = '选择商品'
+              }
             } else {
               this.title = '选择商品'
             }
@@ -280,6 +295,17 @@
         }
         that.selectedRowKeys = [];
         that.selectMaterialIds = [];
+      },
+      addMaterial() {
+        this.$refs.modalForm.add()
+        this.$refs.modalForm.title = '新增商品'
+      },
+      getImgUrl(imgName) {
+        if(imgName && imgName.split(',')) {
+          return getFileAccessHttpUrl('systemConfig/static/' + imgName.split(',')[0])
+        } else {
+          return ''
+        }
       },
       close() {
         this.searchReset(0);

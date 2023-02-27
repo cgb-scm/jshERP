@@ -111,7 +111,7 @@ public class MaterialService {
         return list;
     }
 
-    public List<MaterialVo4Unit> select(String materialParam, String color, String weight, String expiryNum,
+    public List<MaterialVo4Unit> select(String materialParam, String color, String materialOther, String weight, String expiryNum,
                                         String enableSerialNumber, String enableBatchNumber, String enabled,
                                         String remark, String categoryId, String mpList, int offset, int rows)
             throws Exception{
@@ -126,13 +126,14 @@ public class MaterialService {
             if(StringUtil.isNotEmpty(categoryId)){
                 idList = getListByParentId(Long.parseLong(categoryId));
             }
-            list= materialMapperEx.selectByConditionMaterial(materialParam, color, weight, expiryNum,
+            list= materialMapperEx.selectByConditionMaterial(materialParam, color, materialOther, weight, expiryNum,
                     enableSerialNumber, enableBatchNumber, enabled, remark, idList, mpList, offset, rows);
             if (null != list && list.size()>0) {
                 Map<Long,BigDecimal> currentStockMap = getCurrentStockMapByMaterialList(list);
                 for (MaterialVo4Unit m : list) {
                     m.setMaterialOther(getMaterialOtherByParam(mpArr, m));
                     m.setStock(currentStockMap.get(m.getId())!=null? currentStockMap.get(m.getId()): BigDecimal.ZERO);
+                    m.setBigUnitStock(getBigUnitStock(m.getStock(), m.getUnitId()));
                     resList.add(m);
                 }
             }
@@ -142,7 +143,7 @@ public class MaterialService {
         return resList;
     }
 
-    public Long countMaterial(String materialParam, String color, String weight, String expiryNum,
+    public Long countMaterial(String materialParam, String color, String materialOther, String weight, String expiryNum,
                               String enableSerialNumber, String enableBatchNumber, String enabled,
                               String remark, String categoryId,String mpList)throws Exception {
         Long result =null;
@@ -151,7 +152,7 @@ public class MaterialService {
             if(StringUtil.isNotEmpty(categoryId)){
                 idList = getListByParentId(Long.parseLong(categoryId));
             }
-            result= materialMapperEx.countsByMaterial(materialParam, color, weight, expiryNum,
+            result= materialMapperEx.countsByMaterial(materialParam, color, materialOther, weight, expiryNum,
                     enableSerialNumber, enableBatchNumber, enabled, remark, idList, mpList);
         }catch(Exception e){
             JshException.readFail(logger, e);
@@ -470,17 +471,19 @@ public class MaterialService {
             }
             Workbook workbook = Workbook.getWorkbook(file.getInputStream());
             Sheet src = workbook.getSheet(0);
+            //获取真实的行数，剔除掉空白行
+            int rightRows = ExcelUtils.getRightRows(src);
             List<Depot> depotList= depotService.getDepot();
             int depotCount = depotList.size();
             Map<String, Long> depotMap = parseDepotToMap(depotList);
             User user = userService.getCurrentUser();
             List<MaterialWithInitStock> mList = new ArrayList<>();
             //单次导入超出1000条
-            if(src.getRows()>1002) {
+            if(rightRows > 1002) {
                 throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_IMPORT_OVER_LIMIT_CODE,
                         String.format(ExceptionConstants.MATERIAL_IMPORT_OVER_LIMIT_MSG));
             }
-            for (int i = 2; i < src.getRows(); i++) {
+            for (int i = 2; i < rightRows; i++) {
                 String name = ExcelUtils.getContent(src, i, 0); //名称
                 String standard = ExcelUtils.getContent(src, i, 1); //规格
                 String model = ExcelUtils.getContent(src, i, 2); //型号
@@ -499,6 +502,8 @@ public class MaterialService {
                     throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_UNIT_EMPTY_CODE,
                             String.format(ExceptionConstants.MATERIAL_UNIT_EMPTY_MSG, i+1));
                 }
+                // 批量校验excel中有无重复商品，是指名称、规格、型号、颜色、单位
+                batchCheckExistMaterialListByParam(mList, name, standard, model, color, unit);
                 MaterialWithInitStock m = new MaterialWithInitStock();
                 m.setName(name);
                 m.setStandard(standard);
@@ -550,6 +555,8 @@ public class MaterialService {
                     throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_BARCODE_NOT_INTEGER_CODE,
                             String.format(ExceptionConstants.MATERIAL_BARCODE_NOT_INTEGER_MSG, manyBarCode));
                 }
+                //批量校验excel中有无重复条码
+                batchCheckExistBarCodeByParam(mList, barCode, manyBarCode);
                 JSONObject materialExObj = new JSONObject();
                 JSONObject basicObj = new JSONObject();
                 basicObj.put("barCode", barCode);
@@ -649,7 +656,17 @@ public class MaterialService {
                             insertCurrentStockMaterialList.add(materialCurrentStock);
                         }
                     } else {
-                        depotItemService.updateCurrentStockFun(mId, depotId);
+                        BigDecimal initStock = getInitStock(mId, depotId);
+                        BigDecimal currentNumber = getCurrentStockByMaterialIdAndDepotId(mId, depotId);
+                        //当前库存的更新：减去初始库存，再加上导入的新初始库存
+                        if(currentNumber!=null && initStock!=null && stock!=null) {
+                            currentNumber = currentNumber.subtract(initStock).add(stock);
+                        }
+                        MaterialCurrentStock materialCurrentStock = new MaterialCurrentStock();
+                        materialCurrentStock.setMaterialId(mId);
+                        materialCurrentStock.setDepotId(depotId);
+                        materialCurrentStock.setCurrentNumber(currentNumber);
+                        insertCurrentStockMaterialList.add(materialCurrentStock);
                     }
                 }
             }
@@ -715,6 +732,56 @@ public class MaterialService {
             }
         }
         return stockMap;
+    }
+
+    /**
+     * 批量校验excel中有无重复商品，是指名称、规格、型号、颜色、单位
+     * @param mList
+     */
+    public void batchCheckExistMaterialListByParam(List<MaterialWithInitStock> mList, String name, String standard,
+                                                   String model, String color, String unit) {
+        for(MaterialWithInitStock material: mList){
+            if(name.equals(material.getName()) &&
+                    standard.equals(material.getStandard()) &&
+                    model.equals(material.getModel()) &&
+                    color.equals(material.getColor()) &&
+                    unit.equals(material.getUnit())){
+                String info = name + "-" + standard + "-" + model + "-" + color + "-" + unit;
+                throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_EXCEL_IMPORT_EXIST_CODE,
+                        String.format(ExceptionConstants.MATERIAL_EXCEL_IMPORT_EXIST_MSG, info));
+            }
+        }
+    }
+
+    /**
+     * 批量校验excel中有无重复条码
+     * @param mList
+     */
+    public void batchCheckExistBarCodeByParam(List<MaterialWithInitStock> mList,
+                                              String barCode, String manyBarCode) {
+        for(MaterialWithInitStock material: mList){
+            JSONObject materialExObj = material.getMaterialExObj();
+            String basicBarCode = "";
+            String otherBarCode = "";
+            if(materialExObj.get("basic")!=null) {
+                JSONObject basicObj = materialExObj.getJSONObject("basic");
+                basicBarCode = basicObj.getString("barCode");
+            }
+            if(materialExObj.get("other")!=null) {
+                JSONObject otherObj = materialExObj.getJSONObject("other");
+                otherBarCode = otherObj.getString("barCode");
+            }
+            if(barCode.equals(basicBarCode) || barCode.equals(otherBarCode)){
+                throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_EXCEL_IMPORT_BARCODE_EXIST_CODE,
+                        String.format(ExceptionConstants.MATERIAL_EXCEL_IMPORT_BARCODE_EXIST_MSG, barCode));
+            }
+            if(StringUtil.isNotEmpty(manyBarCode)) {
+                if(manyBarCode.equals(basicBarCode) || manyBarCode.equals(otherBarCode)){
+                    throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_EXCEL_IMPORT_BARCODE_EXIST_CODE,
+                            String.format(ExceptionConstants.MATERIAL_EXCEL_IMPORT_BARCODE_EXIST_MSG, manyBarCode));
+                }
+            }
+        }
     }
 
     /**
@@ -1039,8 +1106,19 @@ public class MaterialService {
     }
 
     public List<MaterialVo4Unit> getListWithStock(List<Long> depotList, List<Long> idList, String materialParam, Integer zeroStock,
-                                                  String column, String order, Integer offset, Integer rows) {
-        return materialMapperEx.getListWithStock(depotList, idList, materialParam, zeroStock, column, order, offset, rows);
+                                                  String column, String order, Integer offset, Integer rows) throws Exception {
+        Map<Long, BigDecimal> initialStockMap = new HashMap<>();
+        List<MaterialInitialStockWithMaterial> initialStockList = getInitialStockWithMaterial(depotList);
+        for (MaterialInitialStockWithMaterial mism: initialStockList) {
+            initialStockMap.put(mism.getMaterialId(), mism.getNumber());
+        }
+        List<MaterialVo4Unit> dataList = materialMapperEx.getListWithStock(depotList, idList, materialParam, zeroStock, column, order, offset, rows);
+        for(MaterialVo4Unit item: dataList) {
+            item.setUnitName(null!=item.getUnitId()?item.getUnitName() + "[多单位]":item.getUnitName());
+            item.setInitialStock(initialStockMap.get(item.getId()));
+            item.setBigUnitStock(getBigUnitStock(item.getCurrentStock(), item.getUnitId()));
+        }
+        return dataList;
     }
 
     public int getListWithStockCount(List<Long> depotList, List<Long> idList, String materialParam, Integer zeroStock) {
@@ -1049,6 +1127,24 @@ public class MaterialService {
 
     public MaterialVo4Unit getTotalStockAndPrice(List<Long> depotList, List<Long> idList, String materialParam) {
         return materialMapperEx.getTotalStockAndPrice(depotList, idList, materialParam);
+    }
+
+    /**
+     * 将小单位的库存换算为大单位的库存
+     * @param stock
+     * @param unitId
+     * @return
+     * @throws Exception
+     */
+    public String getBigUnitStock(BigDecimal stock, Long unitId) throws Exception {
+        String bigUnitStock = "";
+        if(null!= unitId) {
+            Unit unit = unitService.getUnit(unitId);
+            if(unit.getRatio()!=0 && stock!=null) {
+                bigUnitStock = stock.divide(BigDecimal.valueOf(unit.getRatio()),2,BigDecimal.ROUND_HALF_UP) + unit.getOtherUnit();
+            }
+        }
+        return bigUnitStock;
     }
 
     /**

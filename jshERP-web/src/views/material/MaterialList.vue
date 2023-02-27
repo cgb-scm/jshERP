@@ -36,17 +36,6 @@
                 </a-col>
               </span>
               <template v-if="toggleSearchStatus">
-
-                <a-col :md="6" :sm="24">
-                  <a-form-item label="基础重量" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                    <a-input-number style="width: 100%" placeholder="请输入基础重量查询" v-model="queryParam.weight"></a-input-number>
-                  </a-form-item>
-                </a-col>
-                <a-col :md="6" :sm="24">
-                  <a-form-item label="保质期" :labelCol="labelCol" :wrapperCol="wrapperCol">
-                    <a-input-number style="width: 100%" placeholder="请输入保质期查询" v-model="queryParam.expiryNum"></a-input-number>
-                  </a-form-item>
-                </a-col>
                 <a-col :md="6" :sm="24">
                   <a-form-item label="状态" :labelCol="labelCol" :wrapperCol="wrapperCol">
                     <a-select placeholder="请选择状态" v-model="queryParam.enabled">
@@ -72,6 +61,21 @@
                   </a-form-item>
                 </a-col>
                 <a-col :md="6" :sm="24">
+                  <a-form-item label="扩展信息" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                    <a-input style="width: 100%" placeholder="请输入扩展信息查询" v-model="queryParam.materialOther"></a-input>
+                  </a-form-item>
+                </a-col>
+                <a-col :md="6" :sm="24">
+                  <a-form-item label="基础重量" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                    <a-input-number style="width: 100%" placeholder="请输入基础重量查询" v-model="queryParam.weight"></a-input-number>
+                  </a-form-item>
+                </a-col>
+                <a-col :md="6" :sm="24">
+                  <a-form-item label="保质期" :labelCol="labelCol" :wrapperCol="wrapperCol">
+                    <a-input-number style="width: 100%" placeholder="请输入保质期查询" v-model="queryParam.expiryNum"></a-input-number>
+                  </a-form-item>
+                </a-col>
+                <a-col :md="6" :sm="24">
                   <a-form-item label="备注" :labelCol="labelCol" :wrapperCol="wrapperCol">
                     <a-input placeholder="请输入备注查询" v-model="queryParam.remark"></a-input>
                   </a-form-item>
@@ -83,14 +87,7 @@
         <!-- 操作按钮区域 -->
         <div class="table-operator"  style="margin-top: 5px">
           <a-button v-if="btnEnableList.indexOf(1)>-1" @click="handleAdd" type="primary" icon="plus">新增</a-button>
-          <a-upload name="file" :showUploadList="false" :multiple="false" :headers="tokenHeader" :action="importExcelUrl" @change="handleImportExcel">
-            <a-popover title="表格模板">
-              <template slot="content">
-                <p><a target="_blank" href="/doc/goods_template.xls"><b>商品Excel模板下载</b></a></p>
-              </template>
-              <a-button type="primary" icon="import">导入</a-button>
-            </a-popover>
-          </a-upload>
+          <a-button v-if="btnEnableList.indexOf(1)>-1" @click="handleImportXls()" type="primary" icon="import">导入</a-button>
           <a-button type="primary" icon="download" @click="handleExportXls('商品信息')">导出</a-button>
           <a-dropdown>
             <a-menu slot="overlay">
@@ -144,23 +141,35 @@
                 <a>删除</a>
               </a-popconfirm>
             </span>
+            <template slot="customBarCode" slot-scope="text, record">
+              {{record.mBarCode}}
+              <a-popover placement="right" trigger="click">
+                <template slot="content">
+                  <img :src='getImgUrl(record.imgName)' width="500px" />
+                </template>
+                <a-icon v-if="record.imgName" style="font-size: 18px" theme="twoTone" type="file-image" />
+              </a-popover>
+            </template>
+            <template slot="customName" slot-scope="text, record">
+              {{record.name}}
+              <a-tag v-if="record.enableSerialNumber==1" color="orange">序</a-tag>
+              <a-tag v-if="record.enableBatchNumber==1" color="orange">批</a-tag>
+            </template>
+            <template slot="customRenderStock" slot-scope="text, record">
+              <a-tooltip :title="record.bigUnitStock">
+                {{text}}
+              </a-tooltip>
+            </template>
             <template slot="customRenderEnabled" slot-scope="enabled">
               <a-tag v-if="enabled" color="green">启用</a-tag>
               <a-tag v-if="!enabled" color="orange">禁用</a-tag>
-            </template>
-            <template slot="customRenderEnableSerialNumber" slot-scope="enableSerialNumber">
-              <a-tag v-if="enableSerialNumber==1" color="green">有</a-tag>
-              <a-tag v-if="enableSerialNumber==0" color="orange">无</a-tag>
-            </template>
-            <template slot="customRenderEnableBatchNumber" slot-scope="enableBatchNumber">
-              <a-tag v-if="enableBatchNumber==1" color="green">有</a-tag>
-              <a-tag v-if="enableBatchNumber==0" color="orange">无</a-tag>
             </template>
           </a-table>
         </div>
         <!-- table区域-end -->
         <!-- 表单区域 -->
         <material-modal ref="modalForm" @ok="modalFormOk"></material-modal>
+        <import-file-modal ref="modalImportForm" @ok="modalFormOk"></import-file-modal>
         <batch-set-info-modal ref="batchSetInfoModalForm" @ok="modalFormOk"></batch-set-info-modal>
       </a-card>
     </a-col>
@@ -168,9 +177,10 @@
 </template>
 <script>
   import MaterialModal from './modules/MaterialModal'
+  import ImportFileModal from '@/components/tools/ImportFileModal'
   import BatchSetInfoModal from './modules/BatchSetInfoModal'
   import { queryMaterialCategoryTreeList } from '@/api/api'
-  import { postAction } from '@/api/manage'
+  import { postAction, getFileAccessHttpUrl } from '@/api/manage'
   import { getMpListShort } from '@/utils/util'
   import { JeecgListMixin } from '@/mixins/JeecgListMixin'
   import JEllipsis from '@/components/jeecg/JEllipsis'
@@ -182,6 +192,7 @@
     mixins:[JeecgListMixin],
     components: {
       MaterialModal,
+      ImportFileModal,
       BatchSetInfoModal,
       JEllipsis,
       JDate
@@ -203,6 +214,7 @@
           categoryId:'',
           materialParam:'',
           color:'',
+          materialOther:'',
           weight:'',
           expiryNum:'',
           enabled: '',
@@ -221,11 +233,18 @@
           'purchaseDecimal','commodityDecimal','wholesaleDecimal','lowDecimal','enabled','enableSerialNumber','enableBatchNumber','action'],
         // 默认的列
         defColumns: [
-          {title: '条码', dataIndex: 'mBarCode'},
-          {title: '名称', dataIndex: 'name'},
-          {title: '规格', dataIndex: 'standard'},
-          {title: '型号', dataIndex: 'model'},
-          {title: '颜色', dataIndex: 'color'},
+          {
+            title: '操作',
+            dataIndex: 'action',
+            align:"center",
+            width: 100,
+            scopedSlots: { customRender: 'action' },
+          },
+          {title: '条码', dataIndex: 'mBarCode', width: 160, scopedSlots: { customRender: 'customBarCode' }},
+          {title: '名称', dataIndex: 'name', width: 160, scopedSlots: { customRender: 'customName' }},
+          {title: '规格', dataIndex: 'standard', width: 120},
+          {title: '型号', dataIndex: 'model', width: 120},
+          {title: '颜色', dataIndex: 'color', width: 70, ellipsis:true},
           {title: '类别', dataIndex: 'categoryName', width: 100, ellipsis:true},
           {title: '扩展信息', dataIndex: 'materialOther', width: 100, ellipsis:true},
           {title: '单位', dataIndex: 'unit', width: 100, ellipsis:true,
@@ -242,27 +261,16 @@
           },
           {title: '基础重量', dataIndex: 'weight', width: 80},
           {title: '保质期', dataIndex: 'expiryNum', width: 60},
-          {title: '库存', dataIndex: 'stock', width: 80},
+          {title: '库存', dataIndex: 'stock', width: 80,
+            scopedSlots: { customRender: 'customRenderStock' }
+          },
           {title: '采购价', dataIndex: 'purchaseDecimal', width: 80},
           {title: '零售价', dataIndex: 'commodityDecimal', width: 80},
           {title: '销售价', dataIndex: 'wholesaleDecimal', width: 80},
           {title: '最低售价', dataIndex: 'lowDecimal', width: 80},
-          {title: '备注', dataIndex: 'remark'},
+          {title: '备注', dataIndex: 'remark', width: 80},
           {title: '状态', dataIndex: 'enabled', align: "center", width: 60,
             scopedSlots: { customRender: 'customRenderEnabled' }
-          },
-          {title: '序列号', dataIndex: 'enableSerialNumber', align: "center", width: 60,
-            scopedSlots: { customRender: 'customRenderEnableSerialNumber' }
-          },
-          {title: '批号', dataIndex: 'enableBatchNumber', align: "center", width: 60,
-            scopedSlots: { customRender: 'customRenderEnableBatchNumber' }
-          },
-          {
-            title: '操作',
-            dataIndex: 'action',
-            align:"center",
-            width: 100,
-            scopedSlots: { customRender: 'action' },
           }
         ],
         url: {
@@ -373,6 +381,20 @@
         if(this.btnEnableList.indexOf(1)===-1) {
           this.$refs.modalForm.isReadOnly = true
         }
+      },
+      getImgUrl(imgName) {
+        if(imgName && imgName.split(',')) {
+          return getFileAccessHttpUrl('systemConfig/static/' + imgName.split(',')[0])
+        } else {
+          return ''
+        }
+      },
+      handleImportXls() {
+        let importExcelUrl = this.url.importExcelUrl
+        let templateUrl = '/doc/goods_template.xls'
+        let templateName = '商品Excel模板[下载]'
+        this.$refs.modalImportForm.initModal(importExcelUrl, templateUrl, templateName);
+        this.$refs.modalImportForm.title = "商品导入";
       },
       searchReset() {
         this.queryParam = {

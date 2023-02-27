@@ -1,32 +1,40 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="500"
-    :visible="visible"
-    :confirm-loading="confirmLoading"
-    @ok="handleOk"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:35%;height: 30%;overflow-y: hidden">
-    <template slot="footer">
-      <a-button key="back" v-if="isReadOnly" @click="handleCancel">
-        关闭
-      </a-button>
-    </template>
-    <a-spin :spinning="confirmLoading">
-      <a-form :form="form">
-        <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="请输入价格">
-          <a-input placeholder="请输入价格" v-decorator.trim="[ 'price', validatorRules.price]" />
-        </a-form-item>
-      </a-form>
-    </a-spin>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="500"
+      :visible="visible"
+      :confirm-loading="confirmLoading"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:30%;height: 30%;">
+      <template slot="footer">
+        <a-button key="back" v-if="isReadOnly" @click="handleCancel">
+          关闭
+        </a-button>
+      </template>
+      <a-spin :spinning="confirmLoading">
+        <a-form :form="form">
+          <a-form-item :labelCol="labelCol" :wrapperCol="wrapperCol" label="请输入价格">
+            <a-input placeholder="请输入价格" v-decorator.trim="[ 'price', validatorRules.price]" />
+          </a-form-item>
+        </a-form>
+      </a-spin>
+    </a-modal>
+  </div>
 </template>
 
 <script>
+  import {mixinDevice} from '@/utils/mixin'
   export default {
     name: 'BatchSetPriceModal',
+    mixins: [mixinDevice],
     data () {
       return {
         title:"批量设置",

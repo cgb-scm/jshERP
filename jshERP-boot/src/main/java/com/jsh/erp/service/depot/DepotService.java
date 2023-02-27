@@ -18,7 +18,6 @@ import com.jsh.erp.service.userBusiness.UserBusinessService;
 import com.jsh.erp.utils.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -89,8 +88,8 @@ public class DepotService {
 
     public List<Depot> getAllList()throws Exception {
         DepotExample example = new DepotExample();
-        example.createCriteria().andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("sort");
+        example.createCriteria().andEnabledEqualTo(true).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
+        example.setOrderByClause("sort asc, id desc");
         List<Depot> list=null;
         try{
             list=depotMapper.selectByExample(example);
@@ -126,7 +125,13 @@ public class DepotService {
         int result=0;
         try{
             depot.setType(0);
-            depot.setIsDefault(false);
+            List<Depot> depotList = getDepot();
+            if(depotList.size() == 0) {
+                depot.setIsDefault(true);
+            } else {
+                depot.setIsDefault(false);
+            }
+            depot.setEnabled(true);
             result=depotMapper.insertSelective(depot);
             //新增仓库时给当前用户自动授权
             Long userId = userService.getUserId(request);
@@ -230,8 +235,9 @@ public class DepotService {
 
     public List<Depot> findUserDepot()throws Exception{
         DepotExample example = new DepotExample();
-        example.createCriteria().andTypeEqualTo(0).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
-        example.setOrderByClause("sort");
+        example.createCriteria().andTypeEqualTo(0).andEnabledEqualTo(true)
+                .andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
+        example.setOrderByClause("sort asc, id desc");
         List<Depot> list=null;
         try{
             list= depotMapper.selectByExample(example);
@@ -339,5 +345,24 @@ public class DepotService {
             depotStr = depotStr.substring(0, depotStr.length()-1);
         }
         return depotStr;
+    }
+
+    @Transactional(value = "transactionManager", rollbackFor = Exception.class)
+    public int batchSetStatus(Boolean status, String ids)throws Exception {
+        logService.insertLog("仓库",
+                new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_ENABLED).toString(),
+                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+        List<Long> depotIds = StringUtil.strToLongList(ids);
+        Depot depot = new Depot();
+        depot.setEnabled(status);
+        DepotExample example = new DepotExample();
+        example.createCriteria().andIdIn(depotIds);
+        int result=0;
+        try{
+            result = depotMapper.updateByExampleSelective(depot, example);
+        }catch(Exception e){
+            JshException.writeFail(logger, e);
+        }
+        return result;
     }
 }

@@ -123,7 +123,18 @@
         <a-card :bordered="false" :body-style="{padding: '5'}" data-step="7" data-title="服务和版权"
                 data-intro="展示服务到期时间（快到期时会出现续费链接，请注意及时续费）、
           用户数量（是指最多可以录入的用户数量）、版权信息">
-          <div class="hidden-xs" style="float:right;">&copy; 2015-2030 {{systemTitle}} V3.2</div>
+          <div class="hidden-xs" style="float:right;">
+            <a-popover
+              trigger="hover"
+              :visible="hovered"
+              @visibleChange="handleHoverChange">
+              <div slot="content">
+                <img src="/static/weixin.jpg" style="width:258px" />
+              </div>
+              <a-button type="link" v-if="showWeixinSpan()">华夏ERP微信小程序</a-button>
+            </a-popover>
+            &copy; 2015-2030 {{systemTitle}} V3.2
+          </div>
           <a-tag v-if="tenant.type==0" color="blue">试用到期：{{tenant.expireTime}}</a-tag>
           <a-tag v-if="tenant.type==0" color="blue">试用用户：{{tenant.userCurrentNum}}/{{tenant.userNumLimit}}</a-tag>
           <a-tag v-if="tenant.type==1" color="blue">服务到期：{{tenant.expireTime}}</a-tag>
@@ -148,6 +159,7 @@
   import { getBuyAndSaleStatistics, buyOrSalePrice, getPlatformConfigByKey } from '@/api/api'
   import { handleIntroJs } from "@/utils/util"
   import { getAction,postAction } from '../../api/manage'
+  import Vue from 'vue'
 
   export default {
     name: "IndexChart",
@@ -165,6 +177,7 @@
     },
     data() {
       return {
+        hovered: false,
         systemTitle: window.SYS_TITLE,
         systemUrl: window.SYS_URL,
         loading: true,
@@ -183,7 +196,8 @@
           type: '',
           expireTime: '',
           userCurrentNum: '',
-          userNumLimit: ''
+          userNumLimit: '',
+          tenantId: ''
         }
       }
     },
@@ -199,12 +213,12 @@
     },
     methods: {
       initInfo () {
-        getBuyAndSaleStatistics(null).then((res)=>{
+        getBuyAndSaleStatistics({"roleType": Vue.ls.get('roleType')}).then((res)=>{
           if(res.code === 200){
             this.statistics = res.data;
           }
         })
-        buyOrSalePrice(null).then(res=>{
+        buyOrSalePrice({"roleType": Vue.ls.get('roleType')}).then(res=>{
           if(res.code === 200){
             this.buyPriceData = res.data.buyPriceList;
             this.salePriceData = res.data.salePriceList;
@@ -237,7 +251,8 @@
                       let msgParam = {
                         'msgTitle': '试用到期提醒',
                         'msgContent': '试用期即将结束，请您及时续费，过期将会影响正常使用！',
-                        'type': '试用到期'
+                        'type': '试用到期',
+                        'userId': this.tenant.tenantId
                       }
                       postAction("/msg/add",msgParam).then(res=>{
                         if(res && res.code === 200) {
@@ -251,6 +266,17 @@
             }
           }
         })
+      },
+      handleHoverChange(visible) {
+        this.hovered = visible
+      },
+      showWeixinSpan() {
+        let host = window.location.host
+        if(host === 'cloud.huaxiaerp.vip') {
+          return true
+        } else {
+          return false
+        }
       }
     }
   }

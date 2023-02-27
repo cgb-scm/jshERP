@@ -175,7 +175,7 @@ public class MaterialController {
     @ApiOperation(value = "查找商品信息")
     public JSONObject findBySelect(@RequestParam(value = "categoryId", required = false) Long categoryId,
                                   @RequestParam(value = "q", required = false) String q,
-                                  @RequestParam("mpList") String mpList,
+                                  @RequestParam(value = "mpList", required = false) String mpList,
                                   @RequestParam(value = "depotId", required = false) Long depotId,
                                   @RequestParam(value = "enableSerialNumber", required = false) String enableSerialNumber,
                                   @RequestParam(value = "enableBatchNumber", required = false) String enableBatchNumber,
@@ -184,9 +184,12 @@ public class MaterialController {
                                   HttpServletRequest request) throws Exception{
         JSONObject object = new JSONObject();
         try {
+            String[] mpArr = new String[]{};
+            if(StringUtil.isNotEmpty(mpList)){
+                mpArr= mpList.split(",");
+            }
             List<MaterialVo4Unit> dataList = materialService.findBySelectWithBarCode(categoryId, q, enableSerialNumber,
                     enableBatchNumber, (currentPage-1)*pageSize, pageSize);
-            String[] mpArr = mpList.split(",");
             int total = materialService.findBySelectWithBarCodeCount(categoryId, q, enableSerialNumber,
                     enableBatchNumber);
             object.put("total", total);
@@ -239,6 +242,7 @@ public class MaterialController {
                     }
                     item.put("stock", stock);
                     item.put("expand", materialService.getMaterialOtherByParam(mpArr, material));
+                    item.put("imgName", material.getImgName());
                     dataArray.add(item);
                 }
             }
@@ -348,10 +352,10 @@ public class MaterialController {
                     objs[7] = m.getCommodityUnit();
                     objs[8] = m.getWeight() == null? "" : m.getWeight().toString();
                     objs[9] = m.getExpiryNum() == null? "" : m.getExpiryNum().toString();
-                    objs[10] = m.getPurchaseDecimal() == null? "" : m.getPurchaseDecimal().toString();
-                    objs[11] = m.getCommodityDecimal() == null? "" : m.getCommodityDecimal().toString();
-                    objs[12] = m.getWholesaleDecimal() == null? "" : m.getWholesaleDecimal().toString();
-                    objs[13] = m.getLowDecimal() == null? "" : m.getLowDecimal().toString();
+                    objs[10] = m.getPurchaseDecimal() == null? "" : m.getPurchaseDecimal().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
+                    objs[11] = m.getCommodityDecimal() == null? "" : m.getCommodityDecimal().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
+                    objs[12] = m.getWholesaleDecimal() == null? "" : m.getWholesaleDecimal().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
+                    objs[13] = m.getLowDecimal() == null? "" : m.getLowDecimal().setScale(2,BigDecimal.ROUND_HALF_UP).toString();
                     objs[14] = m.getRemark();
                     objs[15] = m.getEnabled() ? "启用" : "禁用";
                     objs[16] = "1".equals(m.getEnableSerialNumber()) ? "有" : "无";
@@ -592,11 +596,6 @@ public class MaterialController {
                     depotList.add(object.getLong("id"));
                 }
             }
-            Map<Long, BigDecimal> initialStockMap = new HashMap<>();
-            List<MaterialInitialStockWithMaterial> initialStockList = materialService.getInitialStockWithMaterial(depotList);
-            for (MaterialInitialStockWithMaterial mism: initialStockList) {
-                initialStockMap.put(mism.getMaterialId(), mism.getNumber());
-            }
             List<MaterialVo4Unit> dataList = materialService.getListWithStock(depotList, idList, StringUtil.toNull(materialParam), zeroStock,
                     StringUtil.safeSqlParse(column), StringUtil.safeSqlParse(order), (currentPage-1)*pageSize, pageSize);
             int total = materialService.getListWithStockCount(depotList, idList, StringUtil.toNull(materialParam), zeroStock);
@@ -604,9 +603,6 @@ public class MaterialController {
             map.put("total", total);
             map.put("currentStock", materialVo4Unit.getCurrentStock());
             map.put("currentStockPrice", materialVo4Unit.getCurrentStockPrice());
-            for(MaterialVo4Unit item: dataList) {
-                item.setInitialStock(initialStockMap.get(item.getId()));
-            }
             map.put("rows", dataList);
             res.code = 200;
             res.data = map;

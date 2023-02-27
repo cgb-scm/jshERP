@@ -1363,3 +1363,84 @@ update jsh_depot_head set purchase_status='0';
 -- --------------------------------------------------------
 alter table jsh_depot_item add link_id bigint(20) DEFAULT NULL COMMENT '关联明细id' after expiration_date;
 alter table jsh_depot_head add deposit decimal(24,6) DEFAULT NULL COMMENT '订金' after other_money;
+
+-- --------------------------------------------------------
+-- 时间 2022年07月25日
+-- by jishenghua
+-- 给平台参数表添加手机端激活码
+-- --------------------------------------------------------
+INSERT INTO `jsh_platform_config` VALUES ('8', 'app_activation_code', '手机端激活码', '');
+
+-- --------------------------------------------------------
+-- 时间 2022年08月25日
+-- by jishenghua
+-- 给部分表增加启用状态和排序字段
+-- --------------------------------------------------------
+alter table jsh_unit add enabled bit(1) DEFAULT NULL COMMENT '启用' after ratio_three;
+update jsh_unit set enabled=1;
+alter table jsh_supplier add sort varchar(10) DEFAULT NULL COMMENT '排序' after tax_rate;
+alter table jsh_depot add enabled bit(1) DEFAULT NULL COMMENT '启用' after principal;
+update jsh_depot set enabled=1;
+alter table jsh_in_out_item add enabled bit(1) DEFAULT NULL COMMENT '启用' after remark;
+alter table jsh_in_out_item add sort varchar(10) DEFAULT NULL COMMENT '排序' after enabled;
+update jsh_in_out_item set enabled=1;
+alter table jsh_account add enabled bit(1) DEFAULT NULL COMMENT '启用' after remark;
+alter table jsh_account add sort varchar(10) DEFAULT NULL COMMENT '排序' after enabled;
+update jsh_account set enabled=1;
+alter table jsh_person add enabled bit(1) DEFAULT NULL COMMENT '启用' after name;
+alter table jsh_person add sort varchar(10) DEFAULT NULL COMMENT '排序' after enabled;
+update jsh_person set enabled=1;
+alter table jsh_role add enabled bit(1) DEFAULT NULL COMMENT '启用' after description;
+alter table jsh_role add sort varchar(10) DEFAULT NULL COMMENT '排序' after enabled;
+update jsh_role set enabled=1;
+
+-- --------------------------------------------------------
+-- 时间 2022年08月30日
+-- by jishenghua
+-- 给产品属性表移除属性字段
+-- --------------------------------------------------------
+alter table jsh_material_attribute drop column attribute_field;
+
+-- --------------------------------------------------------
+-- 时间 2022年09月13日
+-- by jishenghua
+-- 给商品和财务单据的备注修改字段长度
+-- --------------------------------------------------------
+alter table jsh_material change remark remark varchar(500) DEFAULT NULL COMMENT '备注';
+alter table jsh_account_head change remark remark varchar(1000) DEFAULT NULL COMMENT '备注';
+
+-- --------------------------------------------------------
+-- 时间 2022年10月2日
+-- by jishenghua
+-- 给单据明细增加采购单价字段
+-- --------------------------------------------------------
+alter table jsh_depot_item add purchase_unit_price decimal(24,6) DEFAULT NULL COMMENT '采购单价' after unit_price;
+
+-- --------------------------------------------------------
+-- 时间 2022年10月23日
+-- by jishenghua
+-- 给角色表增加价格屏蔽字段
+-- --------------------------------------------------------
+alter table jsh_role add price_limit varchar(50) DEFAULT NULL COMMENT '价格屏蔽 1-屏蔽采购价 2-屏蔽零售价 3-屏蔽销售价' after type;
+
+-- --------------------------------------------------------
+-- 时间 2023年02月19日
+-- by jishenghua
+-- 给系统参数表增加多级审核开关字段
+-- 给用户表增加是否经理字段，默认为否
+-- 给平台配置表增加发起流程地址
+-- --------------------------------------------------------
+alter table jsh_system_config add multi_level_approval_flag varchar(1) DEFAULT '0' COMMENT '多级审核启用标记，0未启用，1启用' after purchase_by_sale_flag;
+alter table jsh_user add leader_flag varchar(1) DEFAULT '0' COMMENT '是否经理，0否，1是' after password;
+INSERT INTO `jsh_platform_config` (`platform_key`, `platform_key_info`, `platform_value`) VALUES ('send_workflow_url', '发起流程地址', '');
+
+-- --------------------------------------------------------
+-- 时间 2023年02月25日
+-- by jishenghua
+-- 给消息表增加接收人字段
+-- 更新接收人id字段的值
+-- 给系统参数表增加流程类型
+-- --------------------------------------------------------
+alter table jsh_msg add user_id bigint(20) DEFAULT NULL COMMENT '接收人id' after type;
+update jsh_msg set user_id=tenant_id where user_id is null;
+alter table jsh_system_config add multi_bill_type varchar(200) DEFAULT NULL COMMENT '流程类型，可多选' after multi_level_approval_flag;

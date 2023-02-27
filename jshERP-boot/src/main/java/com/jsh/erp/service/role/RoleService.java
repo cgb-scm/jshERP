@@ -2,13 +2,12 @@ package com.jsh.erp.service.role;
 
 import com.alibaba.fastjson.JSONObject;
 import com.jsh.erp.constants.BusinessConstants;
-import com.jsh.erp.constants.ExceptionConstants;
 import com.jsh.erp.datasource.entities.Role;
+import com.jsh.erp.datasource.entities.RoleEx;
 import com.jsh.erp.datasource.entities.RoleExample;
 import com.jsh.erp.datasource.entities.User;
 import com.jsh.erp.datasource.mappers.RoleMapper;
 import com.jsh.erp.datasource.mappers.RoleMapperEx;
-import com.jsh.erp.exception.BusinessRunTimeException;
 import com.jsh.erp.exception.JshException;
 import com.jsh.erp.service.log.LogService;
 import com.jsh.erp.service.user.UserService;
@@ -22,6 +21,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -64,7 +64,8 @@ public class RoleService {
 
     public List<Role> allList()throws Exception {
         RoleExample example = new RoleExample();
-        example.createCriteria().andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
+        example.createCriteria().andEnabledEqualTo(true).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
+        example.setOrderByClause("sort asc, id desc");
         List<Role> list=null;
         try{
             list=roleMapper.selectByExample(example);
@@ -74,10 +75,19 @@ public class RoleService {
         return list;
     }
 
-    public List<Role> select(String name, int offset, int rows)throws Exception {
-        List<Role> list=null;
+    public List<RoleEx> select(String name, int offset, int rows)throws Exception {
+        List<RoleEx> list=null;
         try{
             list=roleMapperEx.selectByConditionRole(name, offset, rows);
+            for(RoleEx roleEx: list) {
+                String priceLimit = roleEx.getPriceLimit();
+                if(StringUtil.isNotEmpty(priceLimit)) {
+                    String priceLimitStr = priceLimit.replace("1", "屏蔽采购价")
+                            .replace("2", "屏蔽零售价")
+                            .replace("3", "屏蔽销售价");
+                    roleEx.setPriceLimitStr(priceLimitStr);
+                }
+            }
         }catch(Exception e){
             JshException.readFail(logger, e);
         }
@@ -99,6 +109,7 @@ public class RoleService {
         Role role = JSONObject.parseObject(obj.toJSONString(), Role.class);
         int result=0;
         try{
+            role.setEnabled(true);
             result=roleMapper.insertSelective(role);
             logService.insertLog("角色",
                     new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_ADD).append(role.getName()).toString(), request);
@@ -147,7 +158,7 @@ public class RoleService {
     public List<Role> findUserRole()throws Exception{
         RoleExample example = new RoleExample();
         example.setOrderByClause("Id");
-        example.createCriteria().andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
+        example.createCriteria().andEnabledEqualTo(true).andDeleteFlagNotEqualTo(BusinessConstants.DELETE_FLAG_DELETED);
         List<Role> list=null;
         try{
             list=roleMapper.selectByExample(example);
@@ -186,5 +197,52 @@ public class RoleService {
 
     public Role getRoleWithoutTenant(Long roleId) {
         return roleMapperEx.getRoleWithoutTenant(roleId);
+    }
+
+    @Transactional(value = "transactionManager", rollbackFor = Exception.class)
+    public int batchSetStatus(Boolean status, String ids)throws Exception {
+        logService.insertLog("角色",
+                new StringBuffer(BusinessConstants.LOG_OPERATION_TYPE_ENABLED).toString(),
+                ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+        List<Long> roleIds = StringUtil.strToLongList(ids);
+        Role role = new Role();
+        role.setEnabled(status);
+        RoleExample example = new RoleExample();
+        example.createCriteria().andIdIn(roleIds);
+        int result=0;
+        try{
+            result = roleMapper.updateByExampleSelective(role, example);
+        }catch(Exception e){
+            JshException.writeFail(logger, e);
+        }
+        return result;
+    }
+
+    /**
+     * 根据权限进行屏蔽价格
+     * @param price
+     * @param type
+     * @return
+     */
+    public Object parsePriceByLimit(BigDecimal price, String type, String emptyInfo, HttpServletRequest request) throws Exception {
+        Long userId = userService.getUserId(request);
+        String priceLimit = userService.getRoleTypeByUserId(userId).getPriceLimit();
+        if(StringUtil.isNotEmpty(priceLimit)) {
+            if("buy".equals(type) && priceLimit.contains("1")) {
+                return emptyInfo;
+            }
+            if("retail".equals(type) && priceLimit.contains("2")) {
+                return emptyInfo;
+            }
+            if("sale".equals(type) && priceLimit.contains("3")) {
+                return emptyInfo;
+            }
+        }
+        return price;
+    }
+
+    public String getCurrentPriceLimit(HttpServletRequest request) throws Exception {
+        Long userId = userService.getUserId(request);
+        return userService.getRoleTypeByUserId(userId).getPriceLimit();
     }
 }

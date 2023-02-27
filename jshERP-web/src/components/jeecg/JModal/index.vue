@@ -1,54 +1,63 @@
 <template>
-  <a-modal
-    ref="modal"
-    :class="getClass(modalClass)"
-    :style="getStyle(modalStyle)"
-    :visible="visible"
-    v-bind="_attrs"
-    v-on="$listeners"
-    @ok="handleOk"
-    @cancel="handleCancel"
-  >
+  <div ref="container">
+    <a-modal
+      ref="modal"
+      :class="getClass(modalClass)"
+      :style="getStyle(modalStyle)"
+      :visible="visible"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      v-bind="_attrs"
+      v-on="$listeners"
+      @ok="handleOk"
+      @cancel="handleCancel"
+    >
 
-    <slot></slot>
+      <slot></slot>
 
-    <template v-if="!isNoTitle" slot="title">
-      <a-row class="j-modal-title-row" type="flex">
-        <a-col class="left">
-          <slot name="title">{{ title }}</slot>
-        </a-col>
-        <a-col class="right">
-          <a-tooltip title="新手引导">
-            <a-button v-if="switchHelp" @click="handleHelp" style="right:112px;" class="ant-modal-close ant-modal-close-x"
-                      ghost type="link" icon="question-circle"/>
-          </a-tooltip>
-          <a-button v-if="switchFullscreen" @click="toggleFullscreen" class="ant-modal-close ant-modal-close-x"
-                    ghost type="link" :icon="fullscreenButtonIcon"/>
-        </a-col>
-      </a-row>
-    </template>
+      <template v-if="!isNoTitle" slot="title">
+        <a-row class="j-modal-title-row" type="flex">
+          <a-col class="left">
+            <slot name="title">{{ title }}</slot>
+          </a-col>
+          <a-col class="right">
+            <a-tooltip title="新手引导">
+              <a-button v-if="switchHelp" @click="handleHelp" style="right:112px;" class="ant-modal-close ant-modal-close-x"
+                        ghost type="link" icon="question-circle"/>
+            </a-tooltip>
+            <a-button v-if="switchFullscreen" @click="toggleFullscreen" class="ant-modal-close ant-modal-close-x"
+                      ghost type="link" :icon="fullscreenButtonIcon"/>
+          </a-col>
+        </a-row>
+      </template>
 
-    <!-- 处理 scopedSlots -->
-    <template v-for="slotName of scopedSlotsKeys" :slot="slotName">
-      <slot :name="slotName"></slot>
-    </template>
+      <!-- 处理 scopedSlots -->
+      <template v-for="slotName of scopedSlotsKeys" :slot="slotName">
+        <slot :name="slotName"></slot>
+      </template>
 
-    <!-- 处理 slots -->
-    <template v-for="slotName of slotsKeys" v-slot:[slotName]>
-      <slot :name="slotName"></slot>
-    </template>
+      <!-- 处理 slots -->
+      <template v-for="slotName of slotsKeys" v-slot:[slotName]>
+        <slot :name="slotName"></slot>
+      </template>
 
-  </a-modal>
+    </a-modal>
+  </div>
 </template>
 
 <script>
 
   import { getClass, getStyle } from '@/utils/props-util'
   import { triggerWindowResizeEvent, handleIntroJs } from "@/utils/util"
+  import {mixinDevice} from '@/utils/mixin'
   import Vue from 'vue'
 
   export default {
     name: 'JModal',
+    mixins: [mixinDevice],
     props: {
       title: String,
       // 可使用 .sync 修饰符

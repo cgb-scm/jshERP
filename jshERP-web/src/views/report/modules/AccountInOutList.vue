@@ -1,45 +1,52 @@
 <template>
-  <a-modal
-    :title="title"
-    :width="1000"
-    :visible="visible"
-    @cancel="handleCancel"
-    cancelText="关闭"
-    wrapClassName="ant-modal-cust-warp"
-    style="top:5%;height: 100%;overflow-y: hidden">
-    <template slot="footer">
-      <a-button key="back" @click="handleCancel">取消</a-button>
-    </template>
-    <!-- table区域-begin -->
-    <a-table
-      bordered
-      ref="table"
-      size="middle"
-      rowKey="id"
-      :columns="columns"
-      :dataSource="dataSource"
-      :pagination="ipagination"
-      :loading="loading"
-      @change="handleTableChange">
-      <span slot="numberCustomRender" slot-scope="text, record">
-        <a @click="myHandleDetail(record)">{{record.number}}</a>
-      </span>
-    </a-table>
-    <!-- table区域-end -->
-    <!-- 表单区域 -->
-    <bill-detail ref="billDetail"></bill-detail>
-    <financial-detail ref="financialDetail"></financial-detail>
-  </a-modal>
+  <div ref="container">
+    <a-modal
+      :title="title"
+      :width="1000"
+      :visible="visible"
+      :getContainer="() => $refs.container"
+      :maskStyle="{'top':'93px','left':'154px'}"
+      :wrapClassName="wrapClassNameInfo()"
+      :mask="isDesktop()"
+      :maskClosable="false"
+      @cancel="handleCancel"
+      cancelText="关闭"
+      style="top:20px;height: 95%;">
+      <template slot="footer">
+        <a-button key="back" @click="handleCancel">取消</a-button>
+      </template>
+      <!-- table区域-begin -->
+      <a-table
+        bordered
+        ref="table"
+        size="middle"
+        rowKey="id"
+        :columns="columns"
+        :dataSource="dataSource"
+        :pagination="ipagination"
+        :loading="loading"
+        @change="handleTableChange">
+        <span slot="numberCustomRender" slot-scope="text, record">
+          <a @click="myHandleDetail(record)">{{record.number}}</a>
+        </span>
+      </a-table>
+      <!-- table区域-end -->
+      <!-- 表单区域 -->
+      <bill-detail ref="billDetail"></bill-detail>
+      <financial-detail ref="financialDetail"></financial-detail>
+    </a-modal>
+  </div>
 </template>
 <script>
   import BillDetail from '../../bill/dialog/BillDetail'
   import FinancialDetail from '../../financial/dialog/FinancialDetail'
   import { JeecgListMixin } from '@/mixins/JeecgListMixin'
+  import {mixinDevice} from '@/utils/mixin'
   import JEllipsis from '@/components/jeecg/JEllipsis'
   import {findBillDetailByNumber, findFinancialDetailByNumber} from '@/api/api'
   export default {
     name: "AccountInOutList",
-    mixins:[JeecgListMixin],
+    mixins:[JeecgListMixin, mixinDevice],
     components: {
       BillDetail,
       FinancialDetail,
@@ -146,6 +153,7 @@
         if(record.fromType === 'bill') {
           findBillDetailByNumber({ number: record.number }).then((res) => {
             if (res && res.code === 200) {
+              this.$refs.billDetail.isCanBackCheck = false
               that.$refs.billDetail.show(res.data, record.type);
               that.$refs.billDetail.title="详情";
             }
@@ -153,6 +161,7 @@
         } else if(record.fromType === 'financial') {
           findFinancialDetailByNumber({ billNo: record.number }).then((res) => {
             if (res && res.code === 200) {
+              this.$refs.financialDetail.isCanBackCheck = false
               that.$refs.financialDetail.show(res.data, record.type);
               that.$refs.financialDetail.title="详情";
             }
