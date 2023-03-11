@@ -313,6 +313,9 @@
             </foreach>
             ) or dh.sub_type='采购退货' or dh.sub_type='零售' or dh.sub_type='其它')
         </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         <if test="number != null and number !=''">
             <bind name="bindNumber" value="'%'+number+'%'"/>
             and dh.number like #{bindNumber}
@@ -367,6 +370,9 @@
                 #{organId}
             </foreach>
             ) or dh.sub_type='采购退货' or dh.sub_type='零售' or dh.sub_type='其它')
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
         </if>
         <if test="number != null and number !=''">
             <bind name="bindNumber" value="'%'+number+'%'"/>
@@ -439,6 +445,9 @@
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
             and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey})
         </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
         group by di.material_id
         <if test="offset != null and rows != null">
@@ -496,6 +505,9 @@
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
             and (me.bar_code like #{bindKey} or m.name like #{bindKey} or m.standard like #{bindKey} or m.model like #{bindKey})
         </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
         group by di.material_id) a
     </select>
@@ -536,6 +548,9 @@
                 #{creator}
             </foreach>
             )
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
         </if>
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
@@ -585,6 +600,9 @@
                 #{creator}
             </foreach>
             )
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
         </if>
         <if test="materialParam != null and materialParam !=''">
             <bind name="bindKey" value="'%'+materialParam+'%'"/>
@@ -859,63 +877,77 @@
     </select>
 
     <select id="getBuyAndSaleBasicStatistics" resultType="java.math.BigDecimal">
-        SELECT
-        ifnull(sum(discount_last_money),0)
-        FROM jsh_depot_head
-        WHERE 1=1
+        select
+        ifnull(sum(discount_last_money),0) from
+        (select distinct dh.id, dh.discount_last_money
+        from jsh_depot_head dh
+        left join jsh_depot_item di on dh.id = di.header_id
+        where 1=1
+        and di.id is not null
         <if test="type != null">
-            and type=#{type}
+            and dh.type=#{type}
         </if>
         <if test="subType != null">
-            and sub_type=#{subType}
+            and dh.sub_type=#{subType}
         </if>
         <if test="hasSupplier == 1">
-            and organ_id is not null
+            and dh.organ_id is not null
         </if>
         <if test="hasSupplier == 0">
-            and organ_id is null
+            and dh.organ_id is null
         </if>
         <if test="beginTime != null">
-            and oper_time >= #{beginTime}
+            and dh.oper_time >= #{beginTime}
         </if>
         <if test="endTime != null">
-            and oper_time &lt;= #{endTime}
+            and dh.oper_time &lt;= #{endTime}
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
         </if>
         <if test="creatorArray != null">
-            and creator in (
+            and dh.creator in (
             <foreach collection="creatorArray" item="creator" separator=",">
                 #{creator}
             </foreach>
             )
         </if>
-        and ifnull(delete_flag,'0') !='1'
+        and ifnull(dh.delete_flag,'0') !='1'
+        and ifnull(di.delete_flag,'0') !='1') tb
     </select>
 
     <select id="getBuyAndSaleRetailStatistics" resultType="java.math.BigDecimal">
-        SELECT
-        ifnull(sum(total_price),0)
-        FROM jsh_depot_head
-        WHERE 1=1
+        select
+        ifnull(sum(total_price),0) from
+        (select distinct dh.id, dh.total_price
+        from jsh_depot_head dh
+        left join jsh_depot_item di on dh.id = di.header_id
+        where 1=1
+        and di.id is not null
         <if test="type != null">
-            and type=#{type}
+            and dh.type=#{type}
         </if>
         <if test="subType != null">
-            and sub_type=#{subType}
+            and dh.sub_type=#{subType}
         </if>
         <if test="beginTime != null">
-            and oper_time >= #{beginTime}
+            and dh.oper_time >= #{beginTime}
         </if>
         <if test="endTime != null">
-            and oper_time &lt;= #{endTime}
+            and dh.oper_time &lt;= #{endTime}
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
         </if>
         <if test="creatorArray != null">
-            and creator in (
+            and dh.creator in (
             <foreach collection="creatorArray" item="creator" separator=",">
                 #{creator}
             </foreach>
             )
         </if>
-        and ifnull(delete_flag,'0') !='1'
+        and ifnull(dh.delete_flag,'0') !='1'
+        and ifnull(di.delete_flag,'0') !='1') tb
     </select>
 
     <select id="debtList" parameterType="com.jsh.erp.datasource.entities.DepotHeadExample" resultMap="ResultMapEx">

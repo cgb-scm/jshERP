@@ -376,6 +376,22 @@
             </foreach>
             )
         </if>
+        <if test="organArray != null and organArray !=''">
+            and dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
+        <if test="depotList.size()>0">
+            and di.depot_id in
+            <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         and ifnull(m.delete_flag,'0') !='1'
         group by m.id
         order by m.id desc
@@ -414,6 +430,22 @@
             </foreach>
             )
         </if>
+        <if test="organArray != null and organArray !=''">
+            and dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
+        <if test="depotList.size()>0">
+            and di.depot_id in
+            <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        </if>
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         and ifnull(di.delete_flag,'0') !='1'
         group by m.id) cc
     </select>
@@ -431,6 +463,19 @@
                 #{creator}
             </foreach>
             )
+        </if>
+        <if test="organArray != null and organArray !=''">
+            and dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
+        <if test="depotList.size()>0">
+            and di.depot_id in
+            <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
         </if>
         and ifnull(dh.delete_flag,'0') !='1'
         and ifnull(di.delete_flag,'0') !='1'
@@ -450,16 +495,36 @@
             </foreach>
             )
         </if>
+        <if test="organArray != null and organArray !=''">
+            and dh.organ_id in (
+            <foreach collection="organArray" item="organId" separator=",">
+                #{organId}
+            </foreach>
+            )
+        </if>
+        <if test="depotList.size()>0">
+            and di.depot_id in
+            <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">
+                #{item}
+            </foreach>
+        </if>
         and ifnull(dh.delete_flag,'0') !='1'
         and ifnull(di.delete_flag,'0') !='1'
     </select>
 
     <select id="inOrOutPrice" resultType="java.math.BigDecimal">
-        select ifnull(sum(discount_last_money),0) as allMoney from jsh_depot_head dh
+        select ifnull(sum(discount_last_money),0) as allMoney from
+        (select distinct dh.id, dh.discount_last_money
+        from jsh_depot_head dh
+        left join jsh_depot_item di on dh.id = di.header_id
         where 1=1
+        and di.id is not null
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time &gt;= #{beginTime}
         and dh.oper_time &lt;= #{endTime}
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         <if test="creatorArray != null">
             and dh.creator in (
             <foreach collection="creatorArray" item="creator" separator=",">
@@ -468,14 +533,22 @@
             )
         </if>
         and ifnull(dh.delete_flag,'0') !='1'
+        and ifnull(di.delete_flag, '0') != '1') tb
     </select>
 
     <select id="inOrOutRetailPrice" resultType="java.math.BigDecimal">
-        select ifnull(sum(total_price),0) as allMoney from jsh_depot_head dh
+        select ifnull(sum(total_price),0) as allMoney from
+        (select distinct dh.id, dh.total_price
+        from jsh_depot_head dh
+        left join jsh_depot_item di on dh.id = di.header_id
         where 1=1
+        and di.id is not null
         and dh.type=#{type} and dh.sub_type=#{subType}
         and dh.oper_time &gt;= #{beginTime}
         and dh.oper_time &lt;= #{endTime}
+        <if test="amountApprovalFlag">
+            and dh.status = '1'
+        </if>
         <if test="creatorArray != null">
             and dh.creator in (
             <foreach collection="creatorArray" item="creator" separator=",">
@@ -484,6 +557,7 @@
             )
         </if>
         and ifnull(dh.delete_flag,'0') !='1'
+        and ifnull(di.delete_flag, '0') != '1') tb
     </select>
 
     <select id="getStockCheckSumByDepotList"  resultType="java.math.BigDecimal">
@@ -510,16 +584,16 @@
         and ifnull(di.delete_flag,'0') !='1'
     </select>
 
-    <select id="getSkuStockByParam" resultMap="stockMap">
+    <select id="getSkuStockByParamWithDepotList" resultMap="stockMap">
         select
-        sum(case when dh.type='入库' <if test="depotId != null">and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as inTotal,
-        sum(case when dh.type='出库' and dh.sub_type!='调拨' <if test="depotId != null">and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as outTotal,
-        sum(case when dh.sub_type='调拨' <if test="depotId != null">and di.another_depot_id=#{depotId}</if> then di.basic_number else 0 end) as transfInTotal,
-        sum(case when dh.sub_type='调拨' <if test="depotId != null">and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as transfOutTotal,
-        sum(case when dh.sub_type='组装单' and di.material_type='组合件' <if test="depotId != null">and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as assemInTotal,
-        sum(case when dh.sub_type='组装单' and di.material_type='普通子件' <if test="depotId != null">and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as assemOutTotal,
-        sum(case when dh.sub_type='拆卸单' and di.material_type='普通子件' <if test="depotId != null">and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as disAssemInTotal,
-        sum(case when dh.sub_type='拆卸单' and di.material_type='组合件' <if test="depotId != null"> and di.depot_id=#{depotId}</if> then di.basic_number else 0 end) as disAssemOutTotal
+        sum(case when dh.type='入库' <include refid="depotParam" /> then di.basic_number else 0 end) as inTotal,
+        sum(case when dh.type='出库' and dh.sub_type!='调拨' <include refid="depotParam" /> then di.basic_number else 0 end) as outTotal,
+        sum(case when dh.sub_type='调拨' <include refid="anotherDepotParam" /> then di.basic_number else 0 end) as transfInTotal,
+        sum(case when dh.sub_type='调拨' <include refid="depotParam" /> then di.basic_number else 0 end) as transfOutTotal,
+        sum(case when dh.sub_type='组装单' and di.material_type='组合件' <include refid="depotParam" /> then di.basic_number else 0 end) as assemInTotal,
+        sum(case when dh.sub_type='组装单' and di.material_type='普通子件' <include refid="depotParam" /> then di.basic_number else 0 end) as assemOutTotal,
+        sum(case when dh.sub_type='拆卸单' and di.material_type='普通子件' <include refid="depotParam" /> then di.basic_number else 0 end) as disAssemInTotal,
+        sum(case when dh.sub_type='拆卸单' and di.material_type='组合件' <include refid="depotParam" /> then di.basic_number else 0 end) as disAssemOutTotal
         from
         jsh_depot_head dh
         left join jsh_depot_item di on dh.id=di.header_id and ifnull(di.delete_flag,'0') !='1'
@@ -534,18 +608,6 @@
             and dh.oper_time &lt;= #{endTime}
         </if>
     </select>
-
-    <sql id="depotParam">
-        <if test="depotList.size()>0">
-            and di.depot_id in <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">#{item}</foreach>
-        </if>
-    </sql>
-
-    <sql id="anotherDepotParam">
-        <if test="depotList.size()>0">
-            and di.another_depot_id in <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">#{item}</foreach>
-        </if>
-    </sql>
 
     <select id="getStockByParamWithDepotList" resultMap="stockMap">
         select
@@ -570,6 +632,18 @@
             and dh.oper_time &lt;= #{endTime}
         </if>
     </select>
+
+    <sql id="depotParam">
+        <if test="depotList.size()>0">
+            and di.depot_id in <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">#{item}</foreach>
+        </if>
+    </sql>
+
+    <sql id="anotherDepotParam">
+        <if test="depotList.size()>0">
+            and di.another_depot_id in <foreach collection="depotList" item="item" index="index" separator="," open="(" close=")">#{item}</foreach>
+        </if>
+    </sql>
 
     <select id="findDepotItemListBydepotheadId"  resultType="com.jsh.erp.datasource.entities.DepotItem">
         select

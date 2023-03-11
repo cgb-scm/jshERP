@@ -199,4 +199,38 @@ public class SystemConfigService {
         }
         return minusStockFlag;
     }
+
+    /**
+     * 获取金额审核开关
+     * @return
+     * @throws Exception
+     */
+    public boolean getAmountApprovalFlag() throws Exception {
+        boolean amountApprovalFlag = false;
+        List<SystemConfig> list = getSystemConfig();
+        if(list.size()>0) {
+            String flag = list.get(0).getAmountApprovalFlag();
+            if(("1").equals(flag)) {
+                amountApprovalFlag = true;
+            }
+        }
+        return amountApprovalFlag;
+    }
+
+    /**
+     * 获取多级审核开关
+     * @return
+     * @throws Exception
+     */
+    public boolean getMultiLevelApprovalFlag() throws Exception {
+        boolean multiLevelApprovalFlag = false;
+        List<SystemConfig> list = getSystemConfig();
+        if(list.size()>0) {
+            String flag = list.get(0).getMultiLevelApprovalFlag();
+            if(("1").equals(flag)) {
+                multiLevelApprovalFlag = true;
+            }
+        }
+        return multiLevelApprovalFlag;
+    }
 }

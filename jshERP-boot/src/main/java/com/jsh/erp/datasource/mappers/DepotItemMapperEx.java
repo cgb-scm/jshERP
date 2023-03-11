@@ -30,7 +30,7 @@ public interface DepotItemMapperEx {
             @Param("remark") String remark);
 
     List<DepotItemVo4DetailByTypeAndMId> findDetailByDepotIdsAndMaterialIdList(
-            @Param("depotIdArray") String[] depotIdArray,
+            @Param("depotIdArray") Long[] depotIdArray,
             @Param("sku") String sku,
             @Param("batchNumber") String batchNumber,
             @Param("number") String number,
@@ -41,7 +41,7 @@ public interface DepotItemMapperEx {
             @Param("rows") Integer rows);
 
     Long findDetailByDepotIdsAndMaterialIdCount(
-            @Param("depotIdArray") String[] depotIdArray,
+            @Param("depotIdArray") Long[] depotIdArray,
             @Param("sku") String sku,
             @Param("batchNumber") String batchNumber,
             @Param("number") String number,
@@ -68,6 +68,9 @@ public interface DepotItemMapperEx {
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String [] organArray,
+            @Param("depotList") List<Long> depotList,
+            @Param("amountApprovalFlag") Boolean amountApprovalFlag,
             @Param("offset") Integer offset,
             @Param("rows") Integer rows);
 
@@ -76,7 +79,10 @@ public interface DepotItemMapperEx {
             @Param("billType") String billType,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
-            @Param("creatorArray") String[] creatorArray);
+            @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String [] organArray,
+            @Param("depotList") List<Long> depotList,
+            @Param("amountApprovalFlag") Boolean amountApprovalFlag);
 
     BigDecimal buyOrSaleNumber(
             @Param("type") String type,
@@ -85,6 +91,8 @@ public interface DepotItemMapperEx {
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String [] organArray,
+            @Param("depotList") List<Long> depotList,
             @Param("sumType") String sumType);
 
     BigDecimal buyOrSalePrice(
@@ -94,6 +102,8 @@ public interface DepotItemMapperEx {
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
             @Param("creatorArray") String[] creatorArray,
+            @Param("organArray") String [] organArray,
+            @Param("depotList") List<Long> depotList,
             @Param("sumType") String sumType);
 
     BigDecimal inOrOutPrice(
@@ -101,14 +111,16 @@ public interface DepotItemMapperEx {
             @Param("subType") String subType,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
-            @Param("creatorArray") String[] creatorArray);
+            @Param("creatorArray") String[] creatorArray,
+            @Param("amountApprovalFlag") Boolean amountApprovalFlag);
 
     BigDecimal inOrOutRetailPrice(
             @Param("type") String type,
             @Param("subType") String subType,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime,
-            @Param("creatorArray") String[] creatorArray);
+            @Param("creatorArray") String[] creatorArray,
+            @Param("amountApprovalFlag") Boolean amountApprovalFlag);
 
     BigDecimal getStockCheckSumByDepotList(
             @Param("depotList") List<Long> depotList,
@@ -116,8 +128,8 @@ public interface DepotItemMapperEx {
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime);
 
-    DepotItemVo4Stock getSkuStockByParam(
-            @Param("depotId") Long depotId,
+    DepotItemVo4Stock getSkuStockByParamWithDepotList(
+            @Param("depotList") List<Long> depotList,
             @Param("meId") Long meId,
             @Param("beginTime") String beginTime,
             @Param("endTime") String endTime);

@@ -29,7 +29,7 @@ export const JeecgListMixin = {
       ipagination:{
         current: 1,
         pageSize: 10,
-        pageSizeOptions: ['10', '20', '30'],
+        pageSizeOptions: ['10', '20', '30', '50', '100'],
         showTotal: (total, range) => {
           return range[0] + "-" + range[1] + " 共" + total + "条"
         },
@@ -272,7 +272,11 @@ export const JeecgListMixin = {
     },
     modalFormOk() {
       // 新增/修改 成功时，重载列表
-      this.loadData();
+      this.loadData()
+    },
+    modalFormClose() {
+      // 关闭页面时，重载列表
+      this.loadData()
     },
     handleDetail:function(record, type, prefixNo){
       this.$refs.modalDetail.show(record, type, prefixNo);

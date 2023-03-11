@@ -545,15 +545,15 @@ public class MaterialService {
                     throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_ENABLED_ERROR_CODE,
                             String.format(ExceptionConstants.MATERIAL_ENABLED_ERROR_MSG, i+1));
                 }
-                //校验基础条码是否是正整数
-                if(!StringUtil.isPositiveLong(barCode)) {
-                    throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_BARCODE_NOT_INTEGER_CODE,
-                            String.format(ExceptionConstants.MATERIAL_BARCODE_NOT_INTEGER_MSG, barCode));
+                //校验基础条码长度为4到40位
+                if(!StringUtil.checkBarCodeLength(barCode)) {
+                    throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_BARCODE_LENGTH_ERROR_CODE,
+                            String.format(ExceptionConstants.MATERIAL_BARCODE_LENGTH_ERROR_MSG, barCode));
                 }
-                //校验副条码是否是正整数
-                if(StringUtil.isNotEmpty(manyBarCode) && !StringUtil.isPositiveLong(manyBarCode)) {
-                    throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_BARCODE_NOT_INTEGER_CODE,
-                            String.format(ExceptionConstants.MATERIAL_BARCODE_NOT_INTEGER_MSG, manyBarCode));
+                //校验副条码长度为4到40位
+                if(StringUtil.isNotEmpty(manyBarCode) && !StringUtil.checkBarCodeLength(manyBarCode)) {
+                    throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_BARCODE_LENGTH_ERROR_CODE,
+                            String.format(ExceptionConstants.MATERIAL_BARCODE_LENGTH_ERROR_MSG, manyBarCode));
                 }
                 //批量校验excel中有无重复条码
                 batchCheckExistBarCodeByParam(mList, barCode, manyBarCode);
@@ -567,12 +567,12 @@ public class MaterialService {
                 basicObj.put("lowDecimal", lowDecimal);
                 materialExObj.put("basic", basicObj);
                 if(StringUtil.isNotEmpty(manyUnit) && StringUtil.isNotEmpty(ratio)){ //多单位
-                    //校验比例是否是正整数
-                    if(!StringUtil.isPositiveLong(ratio.trim())) {
+                    //校验比例是否是数字（含小数）
+                    if(!StringUtil.isPositiveBigDecimal(ratio.trim())) {
                         throw new BusinessRunTimeException(ExceptionConstants.MATERIAL_RATIO_NOT_INTEGER_CODE,
                                 String.format(ExceptionConstants.MATERIAL_RATIO_NOT_INTEGER_MSG, i+1));
                     }
-                    Long unitId = unitService.getUnitIdByParam(unit, manyUnit, Integer.parseInt(ratio.trim()));
+                    Long unitId = unitService.getUnitIdByParam(unit, manyUnit, new BigDecimal(ratio.trim()));
                     if(unitId != null) {
                         m.setUnitId(unitId);
                     } else {
@@ -1115,7 +1115,7 @@ public class MaterialService {
         List<MaterialVo4Unit> dataList = materialMapperEx.getListWithStock(depotList, idList, materialParam, zeroStock, column, order, offset, rows);
         for(MaterialVo4Unit item: dataList) {
             item.setUnitName(null!=item.getUnitId()?item.getUnitName() + "[多单位]":item.getUnitName());
-            item.setInitialStock(initialStockMap.get(item.getId()));
+            item.setInitialStock(null!=initialStockMap.get(item.getId())?initialStockMap.get(item.getId()):BigDecimal.ZERO);
             item.setBigUnitStock(getBigUnitStock(item.getCurrentStock(), item.getUnitId()));
         }
         return dataList;
@@ -1140,8 +1140,8 @@ public class MaterialService {
         String bigUnitStock = "";
         if(null!= unitId) {
             Unit unit = unitService.getUnit(unitId);
-            if(unit.getRatio()!=0 && stock!=null) {
-                bigUnitStock = stock.divide(BigDecimal.valueOf(unit.getRatio()),2,BigDecimal.ROUND_HALF_UP) + unit.getOtherUnit();
+            if(unit.getRatio()!=null && unit.getRatio().compareTo(BigDecimal.ZERO)!=0 && stock!=null) {
+                bigUnitStock = stock.divide(unit.getRatio(),2,BigDecimal.ROUND_HALF_UP) + unit.getOtherUnit();
             }
         }
         return bigUnitStock;

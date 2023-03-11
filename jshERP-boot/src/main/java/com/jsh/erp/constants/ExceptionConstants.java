@@ -287,9 +287,9 @@ public class ExceptionConstants {
     //商品-单位匹配不上
     public static final int MATERIAL_UNIT_MATE_CODE = 8000006;
     public static final String MATERIAL_UNIT_MATE_MSG = "抱歉，商品条码:%s的单位匹配不上，请完善计量单位信息！";
-    //商品条码不是正整数
-    public static final int MATERIAL_BARCODE_NOT_INTEGER_CODE = 8000007;
-    public static final String MATERIAL_BARCODE_NOT_INTEGER_MSG = "商品条码:%s不是正整数";
+    //商品条码长度应该为4到40位
+    public static final int MATERIAL_BARCODE_LENGTH_ERROR_CODE = 8000007;
+    public static final String MATERIAL_BARCODE_LENGTH_ERROR_MSG = "商品条码长度应该为4到40位";
     //序列号和批号只能有一项
     public static final int MATERIAL_ENABLE_MUST_ONE_CODE = 8000008;
     public static final String MATERIAL_ENABLE_MUST_ONE_MSG = "抱歉，商品条码:%s的序列号和批号不能同时填1";
@@ -400,6 +400,12 @@ public class ExceptionConstants {
     //单据录入-商品条码XXX的数量与序列号不一致
     public static final int DEPOT_HEAD_SN_NUMBERE_FAILED_CODE = 8000021;
     public static final String DEPOT_HEAD_SN_NUMBERE_FAILED_MSG = "抱歉，商品条码:%s的数量与序列号不一致";
+    //单据录入-单据编号已经存在
+    public static final int DEPOT_HEAD_BILL_NUMBER_EXIST_CODE = 8000022;
+    public static final String DEPOT_HEAD_BILL_NUMBER_EXIST_MSG = "抱歉，单据编号已经存在";
+    //单据录入-单据当前状态下不能修改
+    public static final int DEPOT_HEAD_BILL_CANNOT_EDIT_CODE = 8000023;
+    public static final String DEPOT_HEAD_BILL_CANNOT_EDIT_MSG = "抱歉，单据当前状态下不能修改";
 
     /**
      *  单据明细信息
@@ -433,6 +439,9 @@ public class ExceptionConstants {
     //单据删除-只有未审核的单据才能删除
     public static final int ACCOUNT_HEAD_UN_AUDIT_DELETE_FAILED_CODE = 9500004;
     public static final String ACCOUNT_HEAD_UN_AUDIT_DELETE_FAILED_MSG = "抱歉，只有未审核的单据才能删除";
+    //财务信息录入-单据编号已经存在
+    public static final int ACCOUNT_HEAD_BILL_NO_EXIST_CODE = 9500005;
+    public static final String ACCOUNT_HEAD_BILL_NO_EXIST_MSG = "抱歉，单据编号已经存在";
     /**
      *  财务明细信息
      * type = 100
